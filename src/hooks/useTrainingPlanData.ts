@@ -1,16 +1,20 @@
 import { useState, useCallback, useEffect } from "react";
 import { format, subWeeks, addWeeks } from "date-fns";
-import { PlannedWorkout, CompletedWorkout, DayData } from "@/types/trainingPlan";
+import { supabase } from "@/integrations/supabase/client";
+import { PlannedWorkout, DayData } from "@/types/trainingPlan";
 import { classifyWorkout, WORKOUT_COLORS } from "@/lib/planUtils";
 
-function getAuth() {
-  const athleteId = localStorage.getItem("intervals_athlete_id");
-  const apiKey = localStorage.getItem("intervals_api_key");
-  if (!athleteId || !apiKey) return null;
-  return {
-    athleteId,
-    headers: { Authorization: "Basic " + btoa(`API_KEY:${apiKey}`) },
-  };
+async function proxyFetch(endpoint: string, params: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated. Please log in.");
+
+  const res = await supabase.functions.invoke("intervals-proxy", {
+    body: { action: "fetch", endpoint, params },
+  });
+
+  if (res.error) throw new Error(res.error.message || "Proxy request failed");
+  if (res.data?.error) throw new Error(res.data.error);
+  return res.data;
 }
 
 export function useTrainingPlanData() {
@@ -20,13 +24,6 @@ export function useTrainingPlanData() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    const auth = getAuth();
-    if (!auth) {
-      setError("No Intervals.icu credentials found.");
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -35,23 +32,14 @@ export function useTrainingPlanData() {
     const futureEnd = format(addWeeks(new Date(), 4), "yyyy-MM-dd");
 
     try {
-      const [eventsRes, activitiesRes] = await Promise.all([
-        fetch(
-          `https://intervals.icu/api/v1/athlete/${auth.athleteId}/events?oldest=${today}&newest=${futureEnd}&category=WORKOUT`,
-          { headers: auth.headers }
-        ),
-        fetch(
-          `https://intervals.icu/api/v1/athlete/${auth.athleteId}/activities?oldest=${pastStart}&newest=${today}&fields=name,type,start_date_local,moving_time,icu_training_load,icu_weighted_avg_watts,icu_ftp`,
-          { headers: auth.headers }
-        ),
+      const [events, activities] = await Promise.all([
+        proxyFetch("events", { oldest: today, newest: futureEnd, category: "WORKOUT" }),
+        proxyFetch("activities", {
+          oldest: pastStart,
+          newest: today,
+          fields: "name,type,start_date_local,moving_time,icu_training_load,icu_weighted_avg_watts,icu_ftp",
+        }),
       ]);
-
-      if (!eventsRes.ok || !activitiesRes.ok) {
-        throw new Error("Failed to fetch data from Intervals.icu");
-      }
-
-      const events = await eventsRes.json();
-      const activities = await activitiesRes.json();
 
       const planned: PlannedWorkout[] = (events || []).map((e: any) => {
         const wType = classifyWorkout(e.name || "", e.category);
