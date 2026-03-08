@@ -1,23 +1,44 @@
 import { Phase } from "@/types/trainingPlan";
-import { PHASE_COLORS } from "@/lib/planUtils";
+import { PHASE_HEX } from "@/lib/planUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings2, TrendingUp, Calendar, Clock, Zap } from "lucide-react";
+import { Settings2, TrendingUp, Calendar, Target, Zap, Sparkles } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
   phases: Phase[];
   currentCTL: number;
+  projectedCTL: number;
   weeksToEvent: number;
+  targetTSB: string;
+  hasPlan: boolean;
   onEditPhases: () => void;
   onPhaseClick: (phaseId: string) => void;
 }
 
-export function MacrocycleTimeline({ phases, currentCTL, weeksToEvent, onEditPhases, onPhaseClick }: Props) {
+export function MacrocycleTimeline({
+  phases,
+  currentCTL,
+  projectedCTL,
+  weeksToEvent,
+  targetTSB,
+  hasPlan,
+  onEditPhases,
+  onPhaseClick,
+}: Props) {
+  if (!hasPlan) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Macrocycle Overview</h2>
+        <div className="rounded-lg border border-border bg-card p-12 text-center space-y-3">
+          <Sparkles className="h-8 w-8 text-muted-foreground mx-auto" />
+          <p className="text-muted-foreground">Generate a plan to see your macrocycle</p>
+        </div>
+      </div>
+    );
+  }
+
   const totalWeeks = phases.reduce((s, p) => s + p.weeks, 0);
-  const projectedCTL = phases.length > 0 ? phases[phases.length - 1].targetCTLRange[1] : currentCTL;
-  const totalHours = Math.round(phases.reduce((s, p) => s + (p.weeklyTSSTarget / 60) * p.weeks, 0));
-  const peakTSB = phases.find((p) => p.type === "TAPER") ? "+15" : "+5";
 
   return (
     <div className="space-y-4">
@@ -37,11 +58,11 @@ export function MacrocycleTimeline({ phases, currentCTL, weeksToEvent, onEditPha
               <TooltipTrigger asChild>
                 <button
                   className="relative flex flex-col items-center justify-center text-xs font-medium transition-opacity hover:opacity-90 cursor-pointer"
-                  style={{ width: `${widthPct}%`, backgroundColor: PHASE_COLORS[phase.type] }}
+                  style={{ width: `${widthPct}%`, backgroundColor: PHASE_HEX[phase.type] }}
                   onClick={() => onPhaseClick(phase.id)}
                 >
-                  <span className="font-bold text-background">{phase.type}</span>
-                  <span className="text-background/80">{phase.weeks}w</span>
+                  <span className="font-bold text-white">{phase.type}</span>
+                  <span className="text-white/80">{phase.weeks}w · {phase.weeklyTSSTarget} TSS</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -55,14 +76,23 @@ export function MacrocycleTimeline({ phases, currentCTL, weeksToEvent, onEditPha
         })}
       </div>
 
-      {/* KPI projections */}
+      {/* KPI projection cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <TrendingUp className="h-5 w-5 text-primary" />
             <div>
-              <p className="text-xs text-muted-foreground">CTL Projection</p>
-              <p className="text-lg font-bold">{currentCTL} → {projectedCTL}</p>
+              <p className="text-xs text-muted-foreground">Current CTL</p>
+              <p className="text-lg font-bold">{currentCTL}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <Target className="h-5 w-5 text-warning" />
+            <div>
+              <p className="text-xs text-muted-foreground">Projected CTL</p>
+              <p className="text-lg font-bold">{projectedCTL}</p>
             </div>
           </CardContent>
         </Card>
@@ -77,19 +107,10 @@ export function MacrocycleTimeline({ phases, currentCTL, weeksToEvent, onEditPha
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <Clock className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Total Hours</p>
-              <p className="text-lg font-bold">{totalHours}h</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
             <Zap className="h-5 w-5 text-success" />
             <div>
-              <p className="text-xs text-muted-foreground">Peak TSB (Race Day)</p>
-              <p className="text-lg font-bold text-success">{peakTSB}</p>
+              <p className="text-xs text-muted-foreground">Race-day TSB</p>
+              <p className="text-lg font-bold text-success">{targetTSB}</p>
             </div>
           </CardContent>
         </Card>

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { Calendar, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,14 +8,15 @@ import { WeeklyCalendar } from "@/components/plan/WeeklyCalendar";
 import { DayDetailPanel } from "@/components/plan/DayDetailPanel";
 import { PlanGenerator } from "@/components/plan/PlanGenerator";
 import { useTrainingPlanData } from "@/hooks/useTrainingPlanData";
-import { Phase, DayData } from "@/types/trainingPlan";
-import { generateMockPhases, buildWeekData } from "@/lib/planUtils";
-import { addWeeks, differenceInWeeks } from "date-fns";
+import { Phase, DayData, PlannedWorkout, GeneratedPlanResult } from "@/types/trainingPlan";
+import { generateMockPlanResult, buildWeekData } from "@/lib/planUtils";
+import { differenceInWeeks } from "date-fns";
 
 export default function TrainingPlan() {
-  // Mock event date ~19 weeks from now
-  const [eventDate] = useState(() => addWeeks(new Date(), 19));
-  const [phases, setPhases] = useState<Phase[]>(() => generateMockPhases(eventDate));
+  const [phases, setPhases] = useState<Phase[]>([]);
+  const [generatedWorkouts, setGeneratedWorkouts] = useState<PlannedWorkout[]>([]);
+  const [planResult, setPlanResult] = useState<GeneratedPlanResult | null>(null);
+  const [eventDate, setEventDate] = useState<Date | null>(null);
   const [editPhasesOpen, setEditPhasesOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const [dayPanelOpen, setDayPanelOpen] = useState(false);
@@ -25,12 +26,22 @@ export default function TrainingPlan() {
 
   const { plannedWorkouts, completedMap, loading, error, refresh } = useTrainingPlanData();
 
-  const weeksToEvent = differenceInWeeks(eventDate, new Date());
-  const currentCTL = 52; // Would come from wellness data
+  const hasPlan = phases.length > 0;
+  const weeksToEvent = eventDate ? differenceInWeeks(eventDate, new Date()) : 0;
+  const currentCTL = planResult?.currentCTL ?? 48;
+  const projectedCTL = planResult?.projectedCTL ?? currentCTL;
+
+  // Merge API-fetched workouts with generated mock workouts
+  const allPlannedWorkouts = useMemo(() => {
+    const map = new Map<string, PlannedWorkout>();
+    for (const w of generatedWorkouts) map.set(w.date + w.name, w);
+    for (const w of plannedWorkouts) map.set(w.date + w.name, w);
+    return Array.from(map.values());
+  }, [plannedWorkouts, generatedWorkouts]);
 
   const weeks = useMemo(
-    () => buildWeekData(new Date(), 4, phases, plannedWorkouts, completedMap),
-    [phases, plannedWorkouts, completedMap]
+    () => buildWeekData(new Date(), 4, phases, allPlannedWorkouts, completedMap),
+    [phases, allPlannedWorkouts, completedMap]
   );
 
   const handleDayClick = (day: DayData) => {
@@ -46,6 +57,14 @@ export default function TrainingPlan() {
   const scrollToCalendar = () => {
     calendarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  const handlePlanGenerated = useCallback((date: Date) => {
+    setEventDate(date);
+    const result = generateMockPlanResult(date);
+    setPlanResult(result);
+    setPhases(result.phases);
+    setGeneratedWorkouts(result.workouts);
+  }, []);
 
   if (error) {
     return (
@@ -90,7 +109,10 @@ export default function TrainingPlan() {
         <MacrocycleTimeline
           phases={phases}
           currentCTL={currentCTL}
+          projectedCTL={projectedCTL}
           weeksToEvent={weeksToEvent}
+          targetTSB={hasPlan ? "+15 to +25" : "–"}
+          hasPlan={hasPlan}
           onEditPhases={() => setEditPhasesOpen(true)}
           onPhaseClick={handlePhaseClick}
         />
@@ -111,15 +133,21 @@ export default function TrainingPlan() {
       <DayDetailPanel day={selectedDay} open={dayPanelOpen} onOpenChange={setDayPanelOpen} />
 
       {/* Plan Generator */}
-      <PlanGenerator onScrollToCalendar={scrollToCalendar} />
+      <PlanGenerator
+        onPlanGenerated={handlePlanGenerated}
+        onScrollToCalendar={scrollToCalendar}
+        result={planResult}
+      />
 
       {/* Edit Phases Dialog */}
-      <EditPhasesDialog
-        open={editPhasesOpen}
-        onOpenChange={setEditPhasesOpen}
-        phases={phases}
-        onSave={setPhases}
-      />
+      {hasPlan && (
+        <EditPhasesDialog
+          open={editPhasesOpen}
+          onOpenChange={setEditPhasesOpen}
+          phases={phases}
+          onSave={setPhases}
+        />
+      )}
     </div>
   );
 }

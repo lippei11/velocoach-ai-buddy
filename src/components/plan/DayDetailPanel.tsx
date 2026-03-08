@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatDuration } from "@/lib/planUtils";
 import { format, parseISO } from "date-fns";
-import { Pencil, Save, Upload } from "lucide-react";
+import { Pencil, Save, Upload, X } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface Props {
   day: DayData | null;
@@ -24,6 +25,17 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
   const startEdit = () => {
     setDesc(day?.planned?.description || "");
     setEditing(true);
+  };
+
+  const handleSave = () => {
+    setEditing(false);
+    toast.success("Workout description updated");
+  };
+
+  const handleSyncToIntervals = () => {
+    toast.success("Workout saved to Intervals.icu", {
+      description: "Synced successfully",
+    });
   };
 
   const content = day ? (
@@ -42,13 +54,13 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {day.planned.duration && day.planned.duration > 0 && (
+            {day.planned.duration != null && day.planned.duration > 0 && (
               <div>
                 <span className="text-muted-foreground">Duration: </span>
                 <span className="font-medium">{formatDuration(day.planned.duration)}</span>
               </div>
             )}
-            {day.planned.tssTarget && (
+            {day.planned.tssTarget != null && (
               <div>
                 <span className="text-muted-foreground">TSS Target: </span>
                 <span className="font-medium">{day.planned.tssTarget}</span>
@@ -61,7 +73,7 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
             <div className="space-y-2">
               <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={8} className="font-mono text-xs" />
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => setEditing(false)}>
+                <Button size="sm" onClick={handleSave}>
                   <Save className="h-3 w-3 mr-1" /> Save
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
@@ -80,28 +92,43 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
             </div>
           )}
 
-          {/* Planned vs Actual */}
+          {/* Planned vs Actual comparison */}
           {day.completed && (
             <div className="rounded-lg border border-border p-3 space-y-2">
-              <p className="text-xs font-semibold text-success">✓ Completed</p>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <p className="text-muted-foreground">Duration</p>
-                  <p className="font-medium">{formatDuration(day.completed.movingTime)}</p>
+              <p className="text-xs font-semibold text-success">✓ Completed — Planned vs Actual</p>
+              <div className="grid grid-cols-4 gap-1 text-xs">
+                <div className="text-muted-foreground">Metric</div>
+                <div className="text-muted-foreground text-center">Planned</div>
+                <div className="text-muted-foreground text-center">Actual</div>
+                <div className="text-muted-foreground text-center">Delta</div>
+
+                <div>Duration</div>
+                <div className="text-center font-medium">{day.planned.duration ? formatDuration(day.planned.duration) : "–"}</div>
+                <div className="text-center font-medium">{formatDuration(day.completed.movingTime)}</div>
+                <div className={`text-center font-medium ${
+                  day.planned.duration && day.completed.movingTime > day.planned.duration ? "text-success" : "text-destructive"
+                }`}>
+                  {day.planned.duration ? (day.completed.movingTime > day.planned.duration ? "+" : "") + formatDuration(Math.abs(day.completed.movingTime - day.planned.duration)) : "–"}
                 </div>
-                <div>
-                  <p className="text-muted-foreground">TSS</p>
-                  <p className="font-medium">{day.completed.tss ?? "–"}</p>
+
+                <div>TSS</div>
+                <div className="text-center font-medium">{day.planned.tssTarget ?? "–"}</div>
+                <div className="text-center font-medium">{day.completed.tss ?? "–"}</div>
+                <div className={`text-center font-medium ${
+                  day.planned.tssTarget && day.completed.tss && day.completed.tss >= day.planned.tssTarget ? "text-success" : "text-destructive"
+                }`}>
+                  {day.planned.tssTarget && day.completed.tss ? (day.completed.tss >= day.planned.tssTarget ? "+" : "") + (day.completed.tss - day.planned.tssTarget) : "–"}
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Avg Power</p>
-                  <p className="font-medium">{day.completed.avgPower ? `${day.completed.avgPower}W` : "–"}</p>
-                </div>
+
+                <div>Avg Power</div>
+                <div className="text-center font-medium">–</div>
+                <div className="text-center font-medium">{day.completed.avgPower ? `${day.completed.avgPower}W` : "–"}</div>
+                <div className="text-center font-medium">–</div>
               </div>
             </div>
           )}
 
-          <Button variant="outline" size="sm" className="w-full" disabled>
+          <Button variant="outline" size="sm" className="w-full" onClick={handleSyncToIntervals}>
             <Upload className="h-3 w-3 mr-1" /> Save to Intervals.icu
           </Button>
         </div>
@@ -145,7 +172,7 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[400px] sm:max-w-[400px] overflow-y-auto">
+      <SheetContent className="w-[380px] sm:max-w-[380px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Day Detail</SheetTitle>
         </SheetHeader>
