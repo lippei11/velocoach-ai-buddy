@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { format, subDays, subWeeks, startOfWeek, endOfWeek } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface WellnessRecord {
   id: string;
@@ -33,16 +34,17 @@ export interface WeeklyTSS {
   tss: number;
 }
 
-function getAuth() {
-  const athleteId = localStorage.getItem("intervals_athlete_id");
-  const apiKey = localStorage.getItem("intervals_api_key");
-  if (!athleteId || !apiKey) return null;
-  return {
-    athleteId,
-    headers: {
-      Authorization: "Basic " + btoa(`API_KEY:${apiKey}`),
-    },
-  };
+async function proxyFetch(endpoint: string, params: Record<string, string>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not authenticated. Please log in.");
+
+  const res = await supabase.functions.invoke("intervals-proxy", {
+    body: { action: "fetch", endpoint, params },
+  });
+
+  if (res.error) throw new Error(res.error.message || "Proxy request failed");
+  if (res.data?.error) throw new Error(res.data.error);
+  return res.data;
 }
 
 export function useIntervalsData() {
@@ -52,13 +54,6 @@ export function useIntervalsData() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    const auth = getAuth();
-    if (!auth) {
-      setError("No Intervals.icu credentials found. Please connect your account.");
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -66,23 +61,14 @@ export function useIntervalsData() {
     const oldest = format(subDays(new Date(), 30), "yyyy-MM-dd");
 
     try {
-      const [wellnessRes, activitiesRes] = await Promise.all([
-        fetch(
-          `https://intervals.icu/api/v1/athlete/${auth.athleteId}/wellness?oldest=${oldest}&newest=${today}`,
-          { headers: auth.headers }
-        ),
-        fetch(
-          `https://intervals.icu/api/v1/athlete/${auth.athleteId}/activities?oldest=${oldest}&newest=${today}&fields=name,type,start_date_local,moving_time,distance,icu_training_load,icu_weighted_avg_watts,icu_ftp,sport_info`,
-          { headers: auth.headers }
-        ),
+      const [wellnessData, activitiesData] = await Promise.all([
+        proxyFetch("wellness", { oldest, newest: today }),
+        proxyFetch("activities", {
+          oldest,
+          newest: today,
+          fields: "name,type,start_date_local,moving_time,distance,icu_training_load,icu_weighted_avg_watts,icu_ftp,sport_info",
+        }),
       ]);
-
-      if (!wellnessRes.ok || !activitiesRes.ok) {
-        throw new Error("Failed to fetch data from Intervals.icu");
-      }
-
-      const wellnessData = await wellnessRes.json();
-      const activitiesData = await activitiesRes.json();
 
       setWellness(wellnessData);
       setActivities(activitiesData);
@@ -97,13 +83,10 @@ export function useIntervalsData() {
     fetchData();
   }, [fetchData]);
 
-  // Derived data
   const latestWellness = wellness.length > 0 ? wellness[wellness.length - 1] : null;
   const prevWellness = wellness.length > 1 ? wellness[wellness.length - 2] : null;
-
   const last7Wellness = wellness.slice(-7);
 
-  // Weekly TSS from activities (last 8 weeks)
   const weeklyTSS: WeeklyTSS[] = (() => {
     const weeks: WeeklyTSS[] = [];
     for (let i = 7; i >= 0; i--) {

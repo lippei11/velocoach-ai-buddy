@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -22,27 +23,30 @@ export default function Onboarding() {
       return;
     }
 
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("Please sign in first");
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await fetch(
-        `https://intervals.icu/api/v1/athlete/${athleteId}/activities?oldest=2025-01-01&newest=2025-01-02`,
-        {
-          headers: {
-            Authorization: "Basic " + btoa(`API_KEY:${apiKey}`),
-          },
-        }
-      );
+      const res = await supabase.functions.invoke("intervals-proxy", {
+        body: {
+          action: "save-credentials",
+          athleteId: athleteId.trim(),
+          apiKey: apiKey.trim(),
+        },
+      });
 
-      if (!response.ok) {
-        throw new Error("Invalid credentials");
+      if (res.error || res.data?.error) {
+        throw new Error(res.data?.error || res.error?.message || "Failed to save credentials");
       }
 
-      localStorage.setItem("intervals_athlete_id", athleteId);
-      localStorage.setItem("intervals_api_key", apiKey);
       toast.success("Connected successfully!");
       navigate("/dashboard");
-    } catch {
-      toast.error("Invalid credentials — check your Athlete ID and API Key");
+    } catch (err: any) {
+      toast.error(err.message || "Invalid credentials — check your Athlete ID and API Key");
     } finally {
       setLoading(false);
     }
