@@ -14,7 +14,128 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      athlete_connections: {
+        Row: {
+          created_at: string | null
+          dexcom_access_token: string | null
+          dexcom_refresh_token: string | null
+          id: string
+          intervals_api_key: string
+          intervals_athlete_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          dexcom_access_token?: string | null
+          dexcom_refresh_token?: string | null
+          id?: string
+          intervals_api_key: string
+          intervals_athlete_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          dexcom_access_token?: string | null
+          dexcom_refresh_token?: string | null
+          id?: string
+          intervals_api_key?: string
+          intervals_athlete_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      training_plans: {
+        Row: {
+          event_date: string | null
+          fitness_context: string | null
+          generated_at: string | null
+          goal_event: string | null
+          id: string
+          plan_data: Json
+          synced_to_intervals: boolean | null
+          user_id: string
+        }
+        Insert: {
+          event_date?: string | null
+          fitness_context?: string | null
+          generated_at?: string | null
+          goal_event?: string | null
+          id?: string
+          plan_data?: Json
+          synced_to_intervals?: boolean | null
+          user_id: string
+        }
+        Update: {
+          event_date?: string | null
+          fitness_context?: string | null
+          generated_at?: string | null
+          goal_event?: string | null
+          id?: string
+          plan_data?: Json
+          synced_to_intervals?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
