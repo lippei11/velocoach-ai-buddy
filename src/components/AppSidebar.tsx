@@ -1,6 +1,7 @@
-import { Bike, LayoutDashboard, Calendar, MessageSquare, Settings, ChevronLeft } from "lucide-react";
+import { Bike, LayoutDashboard, Calendar, MessageSquare, Settings, ChevronLeft, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +26,7 @@ export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -69,11 +71,28 @@ export function AppSidebar() {
             <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
               <Bike className="h-4 w-4 text-primary" />
             </div>
-            <div className="flex flex-col text-xs">
-              <span className="text-foreground font-medium">Athlete</span>
-              <span className="text-muted-foreground">Connected</span>
+            <div className="flex flex-col text-xs min-w-0">
+              <span className="text-foreground font-medium truncate">
+                {user?.email ?? "Athlete"}
+              </span>
+              <button
+                onClick={signOut}
+                className="text-muted-foreground hover:text-destructive transition-colors text-left flex items-center gap-1"
+              >
+                <LogOut className="h-3 w-3" />
+                Logout
+              </button>
             </div>
           </div>
+        )}
+        {collapsed && (
+          <button
+            onClick={signOut}
+            className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive mx-auto"
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         )}
         <button
           onClick={toggleSidebar}
