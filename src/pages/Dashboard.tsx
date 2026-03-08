@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, Legend, ReferenceLine
 } from "recharts";
 import { useIntervalsData } from "@/hooks/useIntervalsData";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 
 function Sparkline({ data, color }: { data: { v: number }[]; color: string }) {
