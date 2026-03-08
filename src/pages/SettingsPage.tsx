@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings, User, Link2, Dumbbell, Puzzle, CheckCircle2, XCircle, Wifi, WifiOff } from "lucide-react";
+import { Settings, User, Dumbbell, Puzzle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import IntervalsConnectionCard from "@/components/settings/IntervalsConnectionCard";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -19,10 +20,6 @@ export default function SettingsPage() {
   const [ftp, setFtp] = useState("260");
   const [weight, setWeight] = useState("72");
   const [experience, setExperience] = useState("intermediate");
-
-  // Intervals.icu (stub)
-  const [intervalsConnected, setIntervalsConnected] = useState(true);
-
   // Training Preferences (stub)
   const [trainingDays, setTrainingDays] = useState(["Tue", "Thu", "Sat", "Sun"]);
   const [hoursPerWeek, setHoursPerWeek] = useState([10]);
@@ -89,60 +86,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* 2. Intervals.icu */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base">Intervals.icu</CardTitle>
-            </div>
-            <Badge
-              variant={intervalsConnected ? "default" : "destructive"}
-              className="gap-1.5"
-            >
-              {intervalsConnected ? (
-                <><CheckCircle2 className="h-3 w-3" /> Connected</>
-              ) : (
-                <><XCircle className="h-3 w-3" /> Disconnected</>
-              )}
-            </Badge>
-          </div>
-          <CardDescription>Sync activities, wellness data, and planned workouts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {intervalsConnected ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Wifi className="h-4 w-4 text-success" />
-                <span>Athlete ID: <span className="font-mono text-foreground">i12345</span></span>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => toast.info("Reconnect flow (mock)")}>
-                  Reconnect
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => { setIntervalsConnected(false); toast.success("Disconnected (mock)"); }}
-                >
-                  Disconnect
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <WifiOff className="h-4 w-4" />
-                <span>No account linked</span>
-              </div>
-              <Button size="sm" onClick={() => { setIntervalsConnected(true); toast.success("Connected (mock)"); }}>
-                Connect
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <IntervalsConnectionCard />
 
       {/* 3. Training Preferences */}
       <Card>
