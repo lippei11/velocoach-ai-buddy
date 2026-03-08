@@ -142,6 +142,14 @@ export function useIntervalsData() {
 
       setWellness(wellnessData);
       setActivities(activityData);
+
+      // Auto-sync if connected but no data yet
+      if (autoSync && wellnessData.length === 0 && activityData.length === 0) {
+        await syncAndReload();
+        // Re-fetch after sync (without triggering another auto-sync)
+        await fetchData(false);
+        return;
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ein Fehler ist aufgetreten");
     } finally {
