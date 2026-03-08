@@ -1,5 +1,13 @@
 import { PhaseType, WorkoutType, Phase, PlannedWorkout, DayData, WeekData, GeneratedPlanResult } from "@/types/trainingPlan";
-import { format, addDays, addWeeks, startOfWeek, endOfWeek, differenceInWeeks, parseISO, isSameDay } from "date-fns";
+import { format, addDays, addWeeks, startOfWeek, endOfWeek, differenceInWeeks, parseISO } from "date-fns";
+import {
+  MOCK_TRAINING_DAYS,
+  WORKOUT_TEMPLATES,
+  PHASE_DISTRIBUTION,
+  PHASE_DEFAULTS,
+  MOCK_CURRENT_CTL,
+  MOCK_PROJECTED_CTL,
+} from "@/mocks";
 
 export const PHASE_COLORS: Record<PhaseType, string> = {
   BASE: "hsl(217, 91%, 60%)",
@@ -45,15 +53,16 @@ export function generateMockPhases(eventDate: Date): Phase[] {
   const now = new Date();
   const totalWeeks = Math.max(4, differenceInWeeks(eventDate, now));
 
-  const taperWeeks = 2;
-  const peakWeeks = Math.min(3, Math.floor(totalWeeks * 0.15));
-  const buildWeeks = Math.min(8, Math.floor(totalWeeks * 0.4));
+  const { taperWeeks, peakRatio, peakMax, buildRatio, buildMax } = PHASE_DISTRIBUTION;
+  const peakWeeks = Math.min(peakMax, Math.floor(totalWeeks * peakRatio));
+  const buildWeeks = Math.min(buildMax, Math.floor(totalWeeks * buildRatio));
   const baseWeeks = Math.max(2, totalWeeks - taperWeeks - peakWeeks - buildWeeks);
 
   const phases: Phase[] = [];
   let cursor = now;
 
-  const addPhase = (type: PhaseType, weeks: number, ctlRange: [number, number], tss: number, focus: string) => {
+  const addPhase = (type: PhaseType, weeks: number) => {
+    const defaults = PHASE_DEFAULTS[type];
     const start = new Date(cursor);
     const end = addWeeks(cursor, weeks);
     phases.push({
@@ -62,17 +71,17 @@ export function generateMockPhases(eventDate: Date): Phase[] {
       startDate: format(start, "yyyy-MM-dd"),
       endDate: format(end, "yyyy-MM-dd"),
       weeks,
-      targetCTLRange: ctlRange,
-      weeklyTSSTarget: tss,
-      workoutFocus: focus,
+      targetCTLRange: defaults.ctlRange,
+      weeklyTSSTarget: defaults.weeklyTSS,
+      workoutFocus: defaults.focus,
     });
     cursor = end;
   };
 
-  addPhase("BASE", baseWeeks, [48, 62], 350, "Z1-Z2 Endurance");
-  addPhase("BUILD", buildWeeks, [62, 75], 420, "Threshold + Sweet Spot");
-  addPhase("PEAK", peakWeeks, [75, 85], 480, "VO2max + Race-Specific");
-  addPhase("TAPER", taperWeeks, [72, 80], 280, "Volume ↓, Intensity maintained");
+  addPhase("BASE", baseWeeks);
+  addPhase("BUILD", buildWeeks);
+  addPhase("PEAK", peakWeeks);
+  addPhase("TAPER", taperWeeks);
 
   return phases;
 }
@@ -133,49 +142,15 @@ export function buildWeekData(
 export function generateMockPlanResult(eventDate: Date): GeneratedPlanResult {
   const phases = generateMockPhases(eventDate);
   const workouts: PlannedWorkout[] = [];
-  const trainingDays = [1, 3, 5, 6]; // Tue, Thu, Sat, Sun (0=Mon)
   let id = 1;
-
-  const workoutTemplates: Record<PhaseType, Array<{ name: string; type: WorkoutType; tss: number; duration: number }>> = {
-    BASE: [
-      { name: "Endurance", type: "endurance", tss: 65, duration: 5400 },
-      { name: "Recovery Spin", type: "recovery", tss: 30, duration: 2700 },
-      { name: "Long Ride", type: "longride", tss: 110, duration: 10800 },
-      { name: "Z2 Endurance", type: "endurance", tss: 75, duration: 5400 },
-    ],
-    BUILD: [
-      { name: "Sweet Spot", type: "sweetspot", tss: 85, duration: 4500 },
-      { name: "Threshold Intervals", type: "sweetspot", tss: 90, duration: 4500 },
-      { name: "Long Ride", type: "longride", tss: 130, duration: 12600 },
-      { name: "Endurance", type: "endurance", tss: 70, duration: 5400 },
-    ],
-    PEAK: [
-      { name: "VO2max Intervals", type: "vo2max", tss: 95, duration: 3600 },
-      { name: "Race Simulation", type: "vo2max", tss: 120, duration: 7200 },
-      { name: "Sweet Spot", type: "sweetspot", tss: 80, duration: 4500 },
-      { name: "Endurance", type: "endurance", tss: 60, duration: 4500 },
-    ],
-    TAPER: [
-      { name: "Opener", type: "vo2max", tss: 45, duration: 2700 },
-      { name: "Easy Spin", type: "recovery", tss: 25, duration: 2700 },
-      { name: "Short Sweet Spot", type: "sweetspot", tss: 50, duration: 3600 },
-      { name: "Recovery", type: "recovery", tss: 20, duration: 1800 },
-    ],
-    RECOVERY: [
-      { name: "Easy Spin", type: "recovery", tss: 25, duration: 2700 },
-      { name: "Recovery Ride", type: "recovery", tss: 30, duration: 3600 },
-      { name: "Easy Spin", type: "recovery", tss: 25, duration: 2700 },
-      { name: "Rest", type: "rest", tss: 0, duration: 0 },
-    ],
-  };
 
   for (const phase of phases) {
     const phaseStart = parseISO(phase.startDate);
     for (let w = 0; w < phase.weeks; w++) {
       const weekStart = addWeeks(phaseStart, w);
-      trainingDays.forEach((dayOffset, i) => {
+      MOCK_TRAINING_DAYS.forEach((dayOffset, i) => {
         const date = format(addDays(startOfWeek(weekStart, { weekStartsOn: 1 }), dayOffset), "yyyy-MM-dd");
-        const templates = workoutTemplates[phase.type];
+        const templates = WORKOUT_TEMPLATES[phase.type];
         const tmpl = templates[i % templates.length];
         if (tmpl.type === "rest") return;
         workouts.push({
@@ -197,7 +172,7 @@ export function generateMockPlanResult(eventDate: Date): GeneratedPlanResult {
     phases,
     workouts,
     totalWorkouts: workouts.length,
-    currentCTL: 48,
-    projectedCTL: 72,
+    currentCTL: MOCK_CURRENT_CTL,
+    projectedCTL: MOCK_PROJECTED_CTL,
   };
 }
