@@ -54,7 +54,7 @@ function tssBarColor(tss: number) {
 function sportIcon(type: string) {
   const t = type?.toLowerCase() ?? "";
   if (t.includes("ride") || t.includes("cycling")) return <Bike className="h-4 w-4" />;
-  if (t.includes("run")) return <Run className="h-4 w-4" />;
+  if (t.includes("run")) return <Footprints className="h-4 w-4" />;
   if (t.includes("swim")) return <Waves className="h-4 w-4" />;
   if (t.includes("weight") || t.includes("strength")) return <Dumbbell className="h-4 w-4" />;
   return <Activity className="h-4 w-4" />;
