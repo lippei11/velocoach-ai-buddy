@@ -1,8 +1,7 @@
 import { WeekData, DayData } from "@/types/trainingPlan";
 import { Progress } from "@/components/ui/progress";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isSameDay } from "date-fns";
 import { Check, X } from "lucide-react";
-import { WORKOUT_COLORS } from "@/lib/planUtils";
 import { cn } from "@/lib/utils";
 import React from "react";
 
@@ -15,12 +14,15 @@ interface Props {
 }
 
 export function WeeklyCalendar({ weeks, onDayClick, weekRefs }: Props) {
+  const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Weekly Plan</h2>
 
       {/* Day labels header */}
-      <div className="grid grid-cols-[180px_repeat(7,1fr)] gap-1">
+      <div className="grid grid-cols-[200px_repeat(7,1fr)] gap-1">
         <div />
         {DAY_LABELS.map((d) => (
           <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
@@ -33,16 +35,16 @@ export function WeeklyCalendar({ weeks, onDayClick, weekRefs }: Props) {
           <div
             key={week.startDate}
             ref={(el) => { if (week.phase) weekRefs.current[week.phase.id] = el; }}
-            className="grid grid-cols-[180px_repeat(7,1fr)] gap-1"
+            className="grid grid-cols-[200px_repeat(7,1fr)] gap-1"
           >
             {/* Week header */}
             <div className="rounded-lg border border-border bg-card p-2 space-y-1">
               <p className="text-xs font-semibold">
-                Week {week.weekNumber} · {format(parseISO(week.startDate), "MMM d")}
+                {format(parseISO(week.startDate), "MMM d")} – {format(parseISO(week.endDate), "MMM d")}
               </p>
-              {week.phase && (
+              {week.phaseWeekLabel && (
                 <p className="text-[10px] text-muted-foreground">
-                  {week.phase.type} Phase
+                  {week.phaseWeekLabel}
                 </p>
               )}
               <div className="space-y-0.5">
@@ -57,19 +59,25 @@ export function WeeklyCalendar({ weeks, onDayClick, weekRefs }: Props) {
             {week.days.map((day) => {
               const hasPlanned = !!day.planned;
               const hasCompleted = !!day.completed;
-              const isMissed = hasPlanned && !hasCompleted && parseISO(day.date) < new Date();
-              const dayNum = format(parseISO(day.date), "d");
+              const dayDate = parseISO(day.date);
+              const isMissed = hasPlanned && !hasCompleted && dayDate < today && !isSameDay(dayDate, today);
+              const isToday = day.date === todayStr;
+              const dayNum = format(dayDate, "d");
 
               return (
                 <button
                   key={day.date}
                   onClick={() => onDayClick(day)}
                   className={cn(
-                    "rounded-lg border border-border bg-card p-1.5 min-h-[72px] text-left transition-colors hover:bg-accent relative",
+                    "rounded-lg border bg-card p-1.5 min-h-[76px] text-left transition-colors hover:bg-accent relative",
+                    isToday ? "border-primary border-2" : "border-border",
                     hasCompleted && "ring-1 ring-success/30"
                   )}
                 >
-                  <span className="text-[10px] text-muted-foreground">{dayNum}</span>
+                  <span className={cn(
+                    "text-[10px]",
+                    isToday ? "text-primary font-bold" : "text-muted-foreground"
+                  )}>{dayNum}</span>
 
                   {hasPlanned && (
                     <div
@@ -77,15 +85,18 @@ export function WeeklyCalendar({ weeks, onDayClick, weekRefs }: Props) {
                       style={{ backgroundColor: day.planned!.color + "22", color: day.planned!.color }}
                     >
                       {day.planned!.name}
-                      {day.planned!.tssTarget && (
-                        <span className="ml-1 opacity-70">{day.planned!.tssTarget}</span>
+                      {day.planned!.tssTarget != null && (
+                        <span className="ml-1 opacity-70">{day.planned!.tssTarget} TSS</span>
                       )}
                     </div>
                   )}
 
                   {hasCompleted && (
-                    <div className="absolute top-1 right-1">
+                    <div className="absolute top-1 right-1 flex items-center gap-0.5">
                       <Check className="h-3 w-3 text-success" />
+                      {day.completed!.tss != null && (
+                        <span className="text-[9px] text-success">{day.completed!.tss}</span>
+                      )}
                     </div>
                   )}
 
@@ -93,6 +104,10 @@ export function WeeklyCalendar({ weeks, onDayClick, weekRefs }: Props) {
                     <div className="absolute top-1 right-1">
                       <X className="h-3 w-3 text-destructive" />
                     </div>
+                  )}
+
+                  {!hasPlanned && !hasCompleted && (
+                    <span className="text-[10px] text-muted-foreground/40 block mt-2 text-center" />
                   )}
                 </button>
               );

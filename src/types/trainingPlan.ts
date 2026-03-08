@@ -47,6 +47,7 @@ export interface WeekData {
   startDate: string;
   endDate: string;
   phase?: Phase;
+  phaseWeekLabel?: string;
   tssTarget: number;
   tssActual: number;
   days: DayData[];
@@ -56,10 +57,19 @@ export interface PlanGeneratorForm {
   eventName: string;
   eventDate: Date | undefined;
   eventType: string;
+  difficulty: string;
   trainingDays: string[];
   hoursPerWeek: number;
   longestRide: string;
   philosophy: string;
   fitnessContext: string;
   priority: string;
+}
+
+export interface GeneratedPlanResult {
+  phases: Phase[];
+  workouts: PlannedWorkout[];
+  totalWorkouts: number;
+  currentCTL: number;
+  projectedCTL: number;
 }

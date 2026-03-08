@@ -1,5 +1,5 @@
-import { PhaseType, WorkoutType, Phase, PlannedWorkout, DayData, WeekData } from "@/types/trainingPlan";
-import { format, addDays, addWeeks, startOfWeek, endOfWeek, differenceInWeeks, parseISO, isWithinInterval } from "date-fns";
+import { PhaseType, WorkoutType, Phase, PlannedWorkout, DayData, WeekData, GeneratedPlanResult } from "@/types/trainingPlan";
+import { format, addDays, addWeeks, startOfWeek, endOfWeek, differenceInWeeks, parseISO, isSameDay } from "date-fns";
 
 export const PHASE_COLORS: Record<PhaseType, string> = {
   BASE: "hsl(217, 91%, 60%)",
@@ -9,12 +9,12 @@ export const PHASE_COLORS: Record<PhaseType, string> = {
   RECOVERY: "hsl(215, 20%, 55%)",
 };
 
-export const PHASE_BG_CLASSES: Record<PhaseType, string> = {
-  BASE: "bg-primary",
-  BUILD: "bg-warning",
-  PEAK: "bg-destructive",
-  TAPER: "bg-success",
-  RECOVERY: "bg-muted-foreground",
+export const PHASE_HEX: Record<PhaseType, string> = {
+  BASE: "#3B82F6",
+  BUILD: "#F97316",
+  PEAK: "#EF4444",
+  TAPER: "#22C55E",
+  RECOVERY: "#6B7280",
 };
 
 export const WORKOUT_COLORS: Record<WorkoutType, string> = {
@@ -69,10 +69,10 @@ export function generateMockPhases(eventDate: Date): Phase[] {
     cursor = end;
   };
 
-  addPhase("BASE", baseWeeks, [50, 65], 350, "Z1-Z2 Endurance");
-  addPhase("BUILD", buildWeeks, [65, 80], 420, "Threshold + Sweet Spot");
-  addPhase("PEAK", peakWeeks, [80, 90], 480, "VO2max + Race-Specific");
-  addPhase("TAPER", taperWeeks, [75, 85], 280, "Volume ↓, Intensity maintained");
+  addPhase("BASE", baseWeeks, [48, 62], 350, "Z1-Z2 Endurance");
+  addPhase("BUILD", buildWeeks, [62, 75], 420, "Threshold + Sweet Spot");
+  addPhase("PEAK", peakWeeks, [75, 85], 480, "VO2max + Race-Specific");
+  addPhase("TAPER", taperWeeks, [72, 80], 280, "Volume ↓, Intensity maintained");
 
   return phases;
 }
@@ -95,6 +95,14 @@ export function buildWeekData(
       return weekStart >= ps && weekStart < pe;
     });
 
+    // Calculate week number within phase
+    let phaseWeekLabel: string | undefined;
+    if (phase) {
+      const phaseStart = parseISO(phase.startDate);
+      const weekInPhase = differenceInWeeks(weekStart, phaseStart) + 1;
+      phaseWeekLabel = `${phase.type} Phase - Week ${weekInPhase} of ${phase.weeks}`;
+    }
+
     const days: DayData[] = [];
     let tssActual = 0;
 
@@ -111,6 +119,7 @@ export function buildWeekData(
       startDate: format(weekStart, "yyyy-MM-dd"),
       endDate: format(weekEnd, "yyyy-MM-dd"),
       phase,
+      phaseWeekLabel,
       tssTarget: phase?.weeklyTSSTarget || 0,
       tssActual: Math.round(tssActual),
       days,
@@ -118,4 +127,77 @@ export function buildWeekData(
   }
 
   return weeks;
+}
+
+/** Generate mock workouts for plan generation result */
+export function generateMockPlanResult(eventDate: Date): GeneratedPlanResult {
+  const phases = generateMockPhases(eventDate);
+  const workouts: PlannedWorkout[] = [];
+  const trainingDays = [1, 3, 5, 6]; // Tue, Thu, Sat, Sun (0=Mon)
+  let id = 1;
+
+  const workoutTemplates: Record<PhaseType, Array<{ name: string; type: WorkoutType; tss: number; duration: number }>> = {
+    BASE: [
+      { name: "Endurance", type: "endurance", tss: 65, duration: 5400 },
+      { name: "Recovery Spin", type: "recovery", tss: 30, duration: 2700 },
+      { name: "Long Ride", type: "longride", tss: 110, duration: 10800 },
+      { name: "Z2 Endurance", type: "endurance", tss: 75, duration: 5400 },
+    ],
+    BUILD: [
+      { name: "Sweet Spot", type: "sweetspot", tss: 85, duration: 4500 },
+      { name: "Threshold Intervals", type: "sweetspot", tss: 90, duration: 4500 },
+      { name: "Long Ride", type: "longride", tss: 130, duration: 12600 },
+      { name: "Endurance", type: "endurance", tss: 70, duration: 5400 },
+    ],
+    PEAK: [
+      { name: "VO2max Intervals", type: "vo2max", tss: 95, duration: 3600 },
+      { name: "Race Simulation", type: "vo2max", tss: 120, duration: 7200 },
+      { name: "Sweet Spot", type: "sweetspot", tss: 80, duration: 4500 },
+      { name: "Endurance", type: "endurance", tss: 60, duration: 4500 },
+    ],
+    TAPER: [
+      { name: "Opener", type: "vo2max", tss: 45, duration: 2700 },
+      { name: "Easy Spin", type: "recovery", tss: 25, duration: 2700 },
+      { name: "Short Sweet Spot", type: "sweetspot", tss: 50, duration: 3600 },
+      { name: "Recovery", type: "recovery", tss: 20, duration: 1800 },
+    ],
+    RECOVERY: [
+      { name: "Easy Spin", type: "recovery", tss: 25, duration: 2700 },
+      { name: "Recovery Ride", type: "recovery", tss: 30, duration: 3600 },
+      { name: "Easy Spin", type: "recovery", tss: 25, duration: 2700 },
+      { name: "Rest", type: "rest", tss: 0, duration: 0 },
+    ],
+  };
+
+  for (const phase of phases) {
+    const phaseStart = parseISO(phase.startDate);
+    for (let w = 0; w < phase.weeks; w++) {
+      const weekStart = addWeeks(phaseStart, w);
+      trainingDays.forEach((dayOffset, i) => {
+        const date = format(addDays(startOfWeek(weekStart, { weekStartsOn: 1 }), dayOffset), "yyyy-MM-dd");
+        const templates = workoutTemplates[phase.type];
+        const tmpl = templates[i % templates.length];
+        if (tmpl.type === "rest") return;
+        workouts.push({
+          id: `mock-${id++}`,
+          date,
+          name: tmpl.name,
+          category: "WORKOUT",
+          description: `- ${tmpl.name}\n- Duration: ${formatDuration(tmpl.duration)}\n- TSS: ${tmpl.tss}\n- Zone: ${phase.workoutFocus}`,
+          duration: tmpl.duration,
+          tssTarget: tmpl.tss,
+          workoutType: tmpl.type,
+          color: WORKOUT_COLORS[tmpl.type],
+        });
+      });
+    }
+  }
+
+  return {
+    phases,
+    workouts,
+    totalWorkouts: workouts.length,
+    currentCTL: 48,
+    projectedCTL: 72,
+  };
 }
