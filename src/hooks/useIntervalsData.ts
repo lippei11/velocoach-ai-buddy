@@ -1,50 +1,38 @@
 import { useState, useCallback, useEffect } from "react";
-import { format, subDays, subWeeks, startOfWeek, endOfWeek } from "date-fns";
+import { format, subWeeks, startOfWeek, endOfWeek } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface WellnessRecord {
   id: string;
+  date: string;
   ctl: number | null;
   atl: number | null;
   tsb: number | null;
-  rampRate: number | null;
+  ramp_rate: number | null;
   hrv: number | null;
-  hrvSDNN: number | null;
-  sleepScore: number | null;
-  restingHR: number | null;
+  resting_hr: number | null;
+  sleep_score: number | null;
   weight: number | null;
-  date?: string;
 }
 
 export interface Activity {
   id: string;
-  name: string;
-  type: string;
-  start_date_local: string;
-  moving_time: number;
-  distance: number;
-  icu_training_load: number | null;
-  icu_weighted_avg_watts: number | null;
-  icu_ftp: number | null;
-  sport_info?: { icon?: string; color?: string };
+  external_id: string;
+  name: string | null;
+  sport_type: string | null;
+  start_date: string;
+  duration_seconds: number | null;
+  distance_meters: number | null;
+  tss: number | null;
+  normalized_power: number | null;
+  ftp_at_time: number | null;
+  avg_hr: number | null;
+  intensity_factor: number | null;
 }
 
 export interface WeeklyTSS {
   week: string;
   tss: number;
-}
-
-async function proxyFetch(endpoint: string, params: Record<string, string>) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("Not authenticated. Please log in.");
-
-  const res = await supabase.functions.invoke("intervals-proxy", {
-    body: { action: "fetch", endpoint, params },
-  });
-
-  if (res.error) throw new Error(res.error.message || "Proxy request failed");
-  if (res.data?.error) throw new Error(res.data.error);
-  return res.data;
 }
 
 export function useIntervalsData() {
@@ -60,7 +48,6 @@ export function useIntervalsData() {
     setNotConnected(false);
 
     try {
-      // Check connection first
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setError("Not authenticated. Please log in.");
@@ -68,6 +55,7 @@ export function useIntervalsData() {
         return;
       }
 
+      // Check connection
       const checkRes = await supabase.functions.invoke("intervals-proxy", {
         body: { action: "check-connection" },
       });
@@ -78,23 +66,57 @@ export function useIntervalsData() {
         return;
       }
 
-      const today = format(new Date(), "yyyy-MM-dd");
-      const oldest42 = format(subDays(new Date(), 42), "yyyy-MM-dd");
-      const oldest60 = format(subDays(new Date(), 60), "yyyy-MM-dd");
-
-      const [wellnessData, activitiesData] = await Promise.all([
-        proxyFetch("wellness", { oldest: oldest42, newest: today }),
-        proxyFetch("activities", {
-          oldest: oldest60,
-          newest: today,
-          fields: "name,type,start_date_local,moving_time,distance,icu_training_load,icu_weighted_avg_watts,icu_ftp,sport_info",
-        }),
+      // Read from Supabase tables (synced data)
+      const [wellnessRes, activitiesRes] = await Promise.all([
+        supabase
+          .from("wellness_days")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .order("date", { ascending: true })
+          .limit(42),
+        supabase
+          .from("activities")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .order("start_date", { ascending: false })
+          .limit(200),
       ]);
 
-      setWellness(Array.isArray(wellnessData) ? wellnessData : []);
-      setActivities(Array.isArray(activitiesData) ? activitiesData : []);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+      if (wellnessRes.error) throw new Error(wellnessRes.error.message);
+      if (activitiesRes.error) throw new Error(activitiesRes.error.message);
+
+      const wellnessData: WellnessRecord[] = (wellnessRes.data ?? []).map((w) => ({
+        id: w.id,
+        date: w.date,
+        ctl: w.ctl,
+        atl: w.atl,
+        tsb: w.tsb,
+        ramp_rate: w.ramp_rate,
+        hrv: w.hrv,
+        resting_hr: w.resting_hr,
+        sleep_score: w.sleep_score,
+        weight: w.weight,
+      }));
+
+      const activityData: Activity[] = (activitiesRes.data ?? []).map((a) => ({
+        id: a.id,
+        external_id: a.external_id,
+        name: a.name,
+        sport_type: a.sport_type,
+        start_date: a.start_date,
+        duration_seconds: a.duration_seconds,
+        distance_meters: a.distance_meters,
+        tss: a.tss ? Number(a.tss) : null,
+        normalized_power: a.normalized_power,
+        ftp_at_time: a.ftp_at_time,
+        avg_hr: a.avg_hr,
+        intensity_factor: a.intensity_factor ? Number(a.intensity_factor) : null,
+      }));
+
+      setWellness(wellnessData);
+      setActivities(activityData);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -112,10 +134,10 @@ export function useIntervalsData() {
   const currentWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
   const currentWeekTSS = activities
     .filter((a) => {
-      const d = new Date(a.start_date_local);
+      const d = new Date(a.start_date);
       return d >= currentWeekStart && d <= currentWeekEnd;
     })
-    .reduce((sum, a) => sum + (a.icu_training_load || 0), 0);
+    .reduce((sum, a) => sum + (a.tss || 0), 0);
 
   // Weekly TSS last 8 weeks
   const weeklyTSS: WeeklyTSS[] = (() => {
@@ -125,10 +147,10 @@ export function useIntervalsData() {
       const weekEnd = endOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
       const tss = activities
         .filter((a) => {
-          const d = new Date(a.start_date_local);
+          const d = new Date(a.start_date);
           return d >= weekStart && d <= weekEnd;
         })
-        .reduce((sum, a) => sum + (a.icu_training_load || 0), 0);
+        .reduce((sum, a) => sum + (a.tss || 0), 0);
       weeks.push({ week: format(weekStart, "MMM d"), tss: Math.round(tss) });
     }
     return weeks;

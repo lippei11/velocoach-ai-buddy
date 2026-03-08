@@ -46,7 +46,8 @@ function formatDate(iso: string | null) {
 export default function IntervalsConnectionCard() {
   const {
     status, athleteId, connectedAt, lastSyncAt, lastError,
-    saving, checkConnection, saveCredentials, testConnection, disconnect,
+    saving, syncing, lastSyncResult,
+    checkConnection, saveCredentials, testConnection, syncNow, disconnect,
   } = useIntervalsConnection();
 
   const [formAthleteId, setFormAthleteId] = useState("");
@@ -79,6 +80,15 @@ export default function IntervalsConnectionCard() {
       toast.success("Connection is healthy ✓");
     } else {
       toast.error(result.error || "Connection test failed");
+    }
+  };
+
+  const handleSync = async () => {
+    const result = await syncNow();
+    if (result.success) {
+      toast.success(`Synced: ${result.activities} activities, ${result.wellness} wellness days, profile ${result.profile ? "✓" : "—"}`);
+    } else {
+      toast.error(`Sync completed with errors: ${result.errors.join(", ")}`);
     }
   };
 
@@ -127,16 +137,25 @@ export default function IntervalsConnectionCard() {
               </div>
             </div>
 
+            {/* Sync result */}
+            {lastSyncResult && (
+              <div className={`text-xs rounded-md px-3 py-2 ${lastSyncResult.success ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                {lastSyncResult.success
+                  ? `✓ Synced: ${lastSyncResult.activities} activities, ${lastSyncResult.wellness} wellness days${lastSyncResult.profile ? ", profile updated" : ""}`
+                  : `Errors: ${lastSyncResult.errors.join(", ")}`}
+              </div>
+            )}
+
             <Separator />
 
             <div className="flex items-center justify-between">
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleTest} disabled={testing}>
+                <Button variant="outline" size="sm" onClick={handleTest} disabled={testing || syncing}>
                   {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <TestTube2 className="h-3.5 w-3.5 mr-1.5" />}
                   Test connection
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => toast.info("Sync coming in next phase")}>
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing || testing}>
+                  {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                   Sync now
                 </Button>
               </div>
