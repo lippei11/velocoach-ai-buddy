@@ -20,10 +20,6 @@ export default function SettingsPage() {
   const [ftp, setFtp] = useState("260");
   const [weight, setWeight] = useState("72");
   const [experience, setExperience] = useState("intermediate");
-
-  // Intervals.icu (stub)
-  const [intervalsConnected, setIntervalsConnected] = useState(true);
-
   // Training Preferences (stub)
   const [trainingDays, setTrainingDays] = useState(["Tue", "Thu", "Sat", "Sun"]);
   const [hoursPerWeek, setHoursPerWeek] = useState([10]);
