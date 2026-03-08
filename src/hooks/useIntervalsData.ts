@@ -155,10 +155,10 @@ export function useIntervalsData() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [syncAndReload]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true);
   }, [fetchData]);
 
   const latestWellness = wellness.length > 0 ? wellness[wellness.length - 1] : null;
