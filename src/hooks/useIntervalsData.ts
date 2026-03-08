@@ -58,20 +58,21 @@ export function useIntervalsData() {
     setError(null);
 
     const today = format(new Date(), "yyyy-MM-dd");
-    const oldest = format(subDays(new Date(), 30), "yyyy-MM-dd");
+    const oldest42 = format(subDays(new Date(), 42), "yyyy-MM-dd");
+    const oldest60 = format(subDays(new Date(), 60), "yyyy-MM-dd");
 
     try {
       const [wellnessData, activitiesData] = await Promise.all([
-        proxyFetch("wellness", { oldest, newest: today }),
+        proxyFetch("wellness", { oldest: oldest42, newest: today }),
         proxyFetch("activities", {
-          oldest,
+          oldest: oldest60,
           newest: today,
           fields: "name,type,start_date_local,moving_time,distance,icu_training_load,icu_weighted_avg_watts,icu_ftp,sport_info",
         }),
       ]);
 
-      setWellness(wellnessData);
-      setActivities(activitiesData);
+      setWellness(Array.isArray(wellnessData) ? wellnessData : []);
+      setActivities(Array.isArray(activitiesData) ? activitiesData : []);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {
@@ -84,19 +85,30 @@ export function useIntervalsData() {
   }, [fetchData]);
 
   const latestWellness = wellness.length > 0 ? wellness[wellness.length - 1] : null;
-  const prevWellness = wellness.length > 1 ? wellness[wellness.length - 2] : null;
-  const last7Wellness = wellness.slice(-7);
+  const last14Wellness = wellness.slice(-14);
 
+  // Current week TSS
+  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const currentWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+  const currentWeekTSS = activities
+    .filter((a) => {
+      const d = new Date(a.start_date_local);
+      return d >= currentWeekStart && d <= currentWeekEnd;
+    })
+    .reduce((sum, a) => sum + (a.icu_training_load || 0), 0);
+
+  // Weekly TSS last 8 weeks
   const weeklyTSS: WeeklyTSS[] = (() => {
     const weeks: WeeklyTSS[] = [];
     for (let i = 7; i >= 0; i--) {
       const weekStart = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
       const weekEnd = endOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
-      const weekActivities = activities.filter((a) => {
-        const d = new Date(a.start_date_local);
-        return d >= weekStart && d <= weekEnd;
-      });
-      const tss = weekActivities.reduce((sum, a) => sum + (a.icu_training_load || 0), 0);
+      const tss = activities
+        .filter((a) => {
+          const d = new Date(a.start_date_local);
+          return d >= weekStart && d <= weekEnd;
+        })
+        .reduce((sum, a) => sum + (a.icu_training_load || 0), 0);
       weeks.push({ week: format(weekStart, "MMM d"), tss: Math.round(tss) });
     }
     return weeks;
@@ -106,8 +118,8 @@ export function useIntervalsData() {
     wellness,
     activities,
     latestWellness,
-    prevWellness,
-    last7Wellness,
+    last14Wellness,
+    currentWeekTSS: Math.round(currentWeekTSS),
     weeklyTSS,
     loading,
     error,
