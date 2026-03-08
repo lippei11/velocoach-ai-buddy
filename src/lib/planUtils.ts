@@ -1,5 +1,13 @@
 import { PhaseType, WorkoutType, Phase, PlannedWorkout, DayData, WeekData, GeneratedPlanResult } from "@/types/trainingPlan";
-import { format, addDays, addWeeks, startOfWeek, endOfWeek, differenceInWeeks, parseISO, isSameDay } from "date-fns";
+import { format, addDays, addWeeks, startOfWeek, endOfWeek, differenceInWeeks, parseISO } from "date-fns";
+import {
+  MOCK_TRAINING_DAYS,
+  WORKOUT_TEMPLATES,
+  PHASE_DISTRIBUTION,
+  PHASE_DEFAULTS,
+  MOCK_CURRENT_CTL,
+  MOCK_PROJECTED_CTL,
+} from "@/mocks";
 
 export const PHASE_COLORS: Record<PhaseType, string> = {
   BASE: "hsl(217, 91%, 60%)",
