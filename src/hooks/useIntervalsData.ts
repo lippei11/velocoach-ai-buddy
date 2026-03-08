@@ -41,12 +41,26 @@ export function useIntervalsData() {
   const [wellness, setWellness] = useState<WellnessRecord[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notConnected, setNotConnected] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [athleteName, setAthleteName] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const syncAndReload = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await supabase.functions.invoke("intervals-proxy", {
+        body: { action: "sync" },
+      });
+    } catch (e) {
+      console.error("Auto-sync failed:", e);
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  const fetchData = useCallback(async (autoSync = true) => {
     setLoading(true);
     setError(null);
     setNotConnected(false);
