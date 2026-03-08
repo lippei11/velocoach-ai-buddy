@@ -76,8 +76,8 @@ function SyncStatusBadge({ lastSyncAt }: { lastSyncAt: string | null }) {
 export default function Dashboard() {
   const {
     state, wellness, activities, latestWellness, last14Wellness,
-    currentWeekTSS, weeklyTSS, loading, error, notConnected,
-    lastSyncAt, athleteName, refresh,
+    currentWeekTSS, weeklyTSS, loading, syncing, error, notConnected,
+    lastSyncAt, athleteName, refresh, syncAndReload,
   } = useIntervalsData();
   const navigate = useNavigate();
 
