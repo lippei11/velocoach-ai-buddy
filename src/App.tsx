@@ -14,6 +14,7 @@ import TrainingPlan from "./pages/TrainingPlan";
 import Chat from "./pages/Chat";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import ActivityDetail from "./pages/ActivityDetail";
 
 const queryClient = new QueryClient();
 
