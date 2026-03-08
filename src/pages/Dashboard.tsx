@@ -37,7 +37,7 @@ function tsbLabel(tsb: number | null) {
   return "Fatigued";
 }
 
-function sportIcon(type: string) {
+function sportIcon(type: string | null) {
   const t = type?.toLowerCase() ?? "";
   if (t.includes("ride") || t.includes("cycling")) return <Bike className="h-4 w-4" />;
   if (t.includes("run")) return <Footprints className="h-4 w-4" />;
@@ -69,7 +69,7 @@ export default function Dashboard() {
           <Bike className="h-10 w-10 text-primary mx-auto" />
           <h2 className="text-lg font-medium">Intervals.icu verbinden</h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Verbinde dein Intervals.icu Konto in den Settings, um Fitness-, Fatigue- und Aktivitätsdaten hier zu sehen.
+            Verbinde dein Intervals.icu Konto in den Settings und klicke "Sync now", um deine Daten zu importieren.
           </p>
           <Button onClick={() => navigate("/settings")}>
             <Settings className="h-4 w-4 mr-2" />
@@ -97,31 +97,51 @@ export default function Dashboard() {
     );
   }
 
+  // Show empty state if connected but no data synced yet
+  if (!loading && activities.length === 0 && wellness.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">Dashboard</h1>
+          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+          </Button>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-8 text-center space-y-4">
+          <RefreshCw className="h-10 w-10 text-muted-foreground mx-auto" />
+          <h2 className="text-lg font-medium">Keine Daten vorhanden</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Gehe zu Settings → Intervals.icu und klicke "Sync now", um deine Aktivitäten und Wellness-Daten zu importieren.
+          </p>
+          <Button onClick={() => navigate("/settings")}>
+            <Settings className="h-4 w-4 mr-2" />
+            Zu den Settings
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const ctl = latestWellness?.ctl ?? null;
   const atl = latestWellness?.atl ?? null;
-  const tsb = ctl != null && atl != null ? ctl - atl : null;
+  const tsb = latestWellness?.tsb ?? (ctl != null && atl != null ? ctl - atl : null);
 
   const sparklineData = last14Wellness.map((d) => ({ v: d.ctl ?? 0 }));
 
-  // Chart data — 42 days
   const chartData = wellness.map((w) => ({
-    date: w.id,
+    date: w.date,
     CTL: w.ctl ?? 0,
     ATL: w.atl ?? 0,
-    TSB: (w.ctl ?? 0) - (w.atl ?? 0),
+    TSB: w.tsb ?? ((w.ctl ?? 0) - (w.atl ?? 0)),
   }));
 
-  // Bar chart with target line
   const ctlTarget = ctl != null ? Math.round(ctl * 5.5) : null;
   const barData = weeklyTSS.map((w) => ({
     ...w,
     fill: ctl != null && w.tss > ctl * 7 ? "#3B82F6" : "hsl(var(--muted-foreground) / 0.4)",
   }));
 
-  // Recent activities
-  const last10 = [...activities]
-    .sort((a, b) => new Date(b.start_date_local).getTime() - new Date(a.start_date_local).getTime())
-    .slice(0, 10);
+  const last10 = activities.slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -130,11 +150,11 @@ export default function Dashboard() {
         <h1 className="text-xl font-semibold">Dashboard</h1>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Sync Now
+          Refresh
         </Button>
       </div>
 
-      {/* SECTION 1 — KPI Cards */}
+      {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -148,7 +168,6 @@ export default function Dashboard() {
           ))
         ) : (
           <>
-            {/* CTL */}
             <Card>
               <CardContent className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Fitness</p>
@@ -159,7 +178,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* ATL */}
             <Card>
               <CardContent className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Fatigue</p>
@@ -169,7 +187,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* TSB */}
             <Card>
               <CardContent className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Form</p>
@@ -184,7 +201,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Weekly TSS */}
             <Card>
               <CardContent className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">This Week</p>
@@ -196,7 +212,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* SECTION 2 — Charts */}
+      {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
@@ -268,14 +284,10 @@ export default function Dashboard() {
                     dataKey="tss"
                     name="TSS"
                     radius={[4, 4, 0, 0]}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     shape={(props: any) => {
                       const { x, y, width, height, payload } = props;
                       return (
-                        <rect
-                          x={x} y={y} width={width} height={height}
-                          rx={4} fill={payload.fill}
-                        />
+                        <rect x={x} y={y} width={width} height={height} rx={4} fill={payload.fill} />
                       );
                     }}
                   />
@@ -286,7 +298,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* SECTION 3 — Recent Activities */}
+      {/* Recent Activities */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">Recent Activities</CardTitle>
@@ -308,48 +320,42 @@ export default function Dashboard() {
                     <TableHead className="text-xs">Type</TableHead>
                     <TableHead className="text-xs text-right">Duration</TableHead>
                     <TableHead className="text-xs text-right">TSS</TableHead>
-                    <TableHead className="text-xs text-right">Avg Watts</TableHead>
+                    <TableHead className="text-xs text-right">NP</TableHead>
                     <TableHead className="text-xs text-right">IF</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {last10.map((a, idx) => {
-                    const intensityFactor =
-                      a.icu_weighted_avg_watts && a.icu_ftp
-                        ? (a.icu_weighted_avg_watts / a.icu_ftp).toFixed(2)
-                        : "—";
-                    return (
-                      <TableRow
-                        key={a.id}
-                        className={`cursor-pointer hover:bg-accent/50 transition-colors ${
-                          idx % 2 === 1 ? "bg-muted/30" : ""
-                        }`}
-                      >
-                        <TableCell className="text-xs font-mono">
-                          {(() => {
-                            try { return format(new Date(a.start_date_local), "MMM d"); }
-                            catch { return "—"; }
-                          })()}
-                        </TableCell>
-                        <TableCell className="text-sm font-medium max-w-[200px] truncate">
-                          {a.name || "Untitled"}
-                        </TableCell>
-                        <TableCell>{sportIcon(a.type)}</TableCell>
-                        <TableCell className="text-right text-xs font-mono">
-                          {a.moving_time ? formatDuration(a.moving_time) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-mono">
-                          {a.icu_training_load?.toFixed(0) ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-mono">
-                          {a.icu_weighted_avg_watts?.toFixed(0) ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-mono">
-                          {intensityFactor}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {last10.map((a, idx) => (
+                    <TableRow
+                      key={a.id}
+                      className={`cursor-pointer hover:bg-accent/50 transition-colors ${
+                        idx % 2 === 1 ? "bg-muted/30" : ""
+                      }`}
+                    >
+                      <TableCell className="text-xs font-mono">
+                        {(() => {
+                          try { return format(new Date(a.start_date), "MMM d"); }
+                          catch { return "—"; }
+                        })()}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium max-w-[200px] truncate">
+                        {a.name || "Untitled"}
+                      </TableCell>
+                      <TableCell>{sportIcon(a.sport_type)}</TableCell>
+                      <TableCell className="text-right text-xs font-mono">
+                        {a.duration_seconds ? formatDuration(a.duration_seconds) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-mono">
+                        {a.tss?.toFixed(0) ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-mono">
+                        {a.normalized_power?.toFixed(0) ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-mono">
+                        {a.intensity_factor?.toFixed(2) ?? "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>

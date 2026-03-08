@@ -44,6 +44,18 @@ async function testIntervalsCredentials(athleteId: string, apiKey: string) {
   return { ok: res.ok, status: res.status, body: res.ok ? await res.json() : await res.text() };
 }
 
+function intervalsHeaders(apiKey: string) {
+  return { Authorization: "Basic " + btoa(`API_KEY:${apiKey}`) };
+}
+
+async function fetchIntervalsApi(athleteId: string, apiKey: string, path: string, params?: Record<string, string>) {
+  const url = new URL(`https://intervals.icu/api/v1/athlete/${athleteId}/${path}`);
+  if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), { headers: intervalsHeaders(apiKey) });
+  if (!res.ok) throw new Error(`Intervals API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -72,7 +84,6 @@ Deno.serve(async (req) => {
 
       const test = await testIntervalsCredentials(athleteId, apiKey);
       if (!test.ok) {
-        // Save as error state
         await supabaseAdmin
           .from("athlete_connections")
           .upsert(
@@ -125,7 +136,6 @@ Deno.serve(async (req) => {
 
       const test = await testIntervalsCredentials(conn.intervals_athlete_id, conn.intervals_api_key);
       
-      // Update status
       await supabaseAdmin
         .from("athlete_connections")
         .update({
@@ -143,7 +153,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // --- Check connection status (from DB only, no API call) ---
+    // --- Check connection status (from DB only) ---
     if (action === "check-connection") {
       const { data: conn } = await supabaseAdmin
         .from("athlete_connections")
@@ -179,7 +189,132 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true });
     }
 
-    // --- Fetch data from Intervals.icu ---
+    // --- SYNC: Full import of profile, activities, wellness ---
+    if (action === "sync") {
+      const { data: conn, error: connError } = await supabaseAdmin
+        .from("athlete_connections")
+        .select("intervals_athlete_id, intervals_api_key")
+        .eq("user_id", userId)
+        .single();
+
+      if (connError || !conn) {
+        return jsonResponse({ error: "No Intervals.icu credentials found." }, 404);
+      }
+
+      const athleteId = conn.intervals_athlete_id;
+      const apiKey = conn.intervals_api_key;
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      // 90 days back for activities, 42 for wellness
+      const oldest90 = new Date(now.getTime() - 90 * 86400000).toISOString().slice(0, 10);
+      const oldest42 = new Date(now.getTime() - 42 * 86400000).toISOString().slice(0, 10);
+
+      const results = { profile: false, activities: 0, wellness: 0, errors: [] as string[] };
+
+      // 1) Sync athlete profile
+      try {
+        const profile = await fetchIntervalsApi(athleteId, apiKey, "");
+        await supabaseAdmin.from("athlete_profiles").upsert({
+          user_id: userId,
+          intervals_athlete_id: athleteId,
+          name: profile.name ?? null,
+          email: profile.email ?? null,
+          ftp: profile.icu_ftp ?? null,
+          max_hr: profile.icu_max_hr ?? null,
+          resting_hr: profile.icu_resting_hr ?? null,
+          weight: profile.icu_weight ?? null,
+          sport_types: profile.sport_settings ?? [],
+          raw_data: profile,
+          synced_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        }, { onConflict: "user_id" });
+        results.profile = true;
+      } catch (e) {
+        results.errors.push(`Profile: ${e.message}`);
+      }
+
+      // 2) Sync activities (last 90 days)
+      try {
+        const acts = await fetchIntervalsApi(athleteId, apiKey, "activities", {
+          oldest: oldest90,
+          newest: today,
+        });
+        if (Array.isArray(acts) && acts.length > 0) {
+          // Batch upsert in chunks of 50
+          for (let i = 0; i < acts.length; i += 50) {
+            const chunk = acts.slice(i, i + 50).map((a: Record<string, unknown>) => ({
+              user_id: userId,
+              external_id: String(a.id),
+              name: (a.name as string) ?? null,
+              sport_type: (a.type as string) ?? null,
+              start_date: String(a.start_date_local ?? a.start_date ?? today).slice(0, 10),
+              duration_seconds: (a.moving_time as number) ?? null,
+              distance_meters: (a.distance as number) ?? null,
+              tss: (a.icu_training_load as number) ?? null,
+              normalized_power: (a.icu_weighted_avg_watts as number) ?? null,
+              ftp_at_time: (a.icu_ftp as number) ?? null,
+              avg_hr: (a.average_heartrate as number) ?? null,
+              intensity_factor: a.icu_weighted_avg_watts && a.icu_ftp
+                ? Number(((a.icu_weighted_avg_watts as number) / (a.icu_ftp as number)).toFixed(3))
+                : null,
+              source: "intervals",
+              raw_data: a,
+            }));
+            await supabaseAdmin.from("activities").upsert(chunk, {
+              onConflict: "user_id,external_id",
+            });
+          }
+          results.activities = acts.length;
+        }
+      } catch (e) {
+        results.errors.push(`Activities: ${e.message}`);
+      }
+
+      // 3) Sync wellness (last 42 days)
+      try {
+        const well = await fetchIntervalsApi(athleteId, apiKey, "wellness", {
+          oldest: oldest42,
+          newest: today,
+        });
+        if (Array.isArray(well) && well.length > 0) {
+          const rows = well.map((w: Record<string, unknown>) => ({
+            user_id: userId,
+            date: String(w.id ?? w.date ?? today),
+            ctl: (w.ctl as number) ?? null,
+            atl: (w.atl as number) ?? null,
+            tsb: w.ctl != null && w.atl != null ? (w.ctl as number) - (w.atl as number) : null,
+            ramp_rate: (w.rampRate as number) ?? null,
+            hrv: (w.hrv as number) ?? null,
+            resting_hr: (w.restingHR as number) ?? null,
+            sleep_score: (w.sleepScore as number) ?? null,
+            weight: (w.weight as number) ?? null,
+            source: "intervals",
+          }));
+          // Batch in chunks of 50
+          for (let i = 0; i < rows.length; i += 50) {
+            await supabaseAdmin.from("wellness_days").upsert(rows.slice(i, i + 50), {
+              onConflict: "user_id,date",
+            });
+          }
+          results.wellness = well.length;
+        }
+      } catch (e) {
+        results.errors.push(`Wellness: ${e.message}`);
+      }
+
+      // Update last_sync_at
+      await supabaseAdmin
+        .from("athlete_connections")
+        .update({ last_sync_at: now.toISOString(), updated_at: now.toISOString() })
+        .eq("user_id", userId);
+
+      return jsonResponse({
+        success: results.errors.length === 0,
+        ...results,
+      });
+    }
+
+    // --- Fetch data from Intervals.icu (legacy direct proxy) ---
     if (action === "fetch") {
       const { data: conn, error: connError } = await supabaseAdmin
         .from("athlete_connections")
@@ -235,7 +370,6 @@ Deno.serve(async (req) => {
 
       const data = await apiRes.json();
 
-      // Update last_sync_at
       await supabaseAdmin
         .from("athlete_connections")
         .update({ last_sync_at: new Date().toISOString() })

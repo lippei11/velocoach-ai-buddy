@@ -11,6 +11,14 @@ export interface ConnectionState {
   lastError: string | null;
 }
 
+export interface SyncResult {
+  success: boolean;
+  profile: boolean;
+  activities: number;
+  wellness: number;
+  errors: string[];
+}
+
 const INITIAL_STATE: ConnectionState = {
   status: "loading",
   athleteId: null,
@@ -34,6 +42,8 @@ async function callProxy(action: string, extra: Record<string, unknown> = {}) {
 export function useIntervalsConnection() {
   const [state, setState] = useState<ConnectionState>(INITIAL_STATE);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
 
   const checkConnection = useCallback(async () => {
     try {
@@ -93,6 +103,32 @@ export function useIntervalsConnection() {
     }
   }, []);
 
+  const syncNow = useCallback(async (): Promise<SyncResult> => {
+    setSyncing(true);
+    setLastSyncResult(null);
+    try {
+      const data = await callProxy("sync");
+      const result: SyncResult = {
+        success: data.success ?? false,
+        profile: data.profile ?? false,
+        activities: data.activities ?? 0,
+        wellness: data.wellness ?? 0,
+        errors: data.errors ?? [],
+      };
+      setLastSyncResult(result);
+      // Update lastSyncAt in state
+      setState((s) => ({ ...s, lastSyncAt: new Date().toISOString() }));
+      return result;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      const result: SyncResult = { success: false, profile: false, activities: 0, wellness: 0, errors: [msg] };
+      setLastSyncResult(result);
+      return result;
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
   const disconnect = useCallback(async () => {
     try {
       await callProxy("disconnect");
@@ -104,5 +140,5 @@ export function useIntervalsConnection() {
     }
   }, []);
 
-  return { ...state, saving, checkConnection, saveCredentials, testConnection, disconnect };
+  return { ...state, saving, syncing, lastSyncResult, checkConnection, saveCredentials, testConnection, syncNow, disconnect };
 }
