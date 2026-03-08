@@ -41,12 +41,26 @@ export function useIntervalsData() {
   const [wellness, setWellness] = useState<WellnessRecord[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notConnected, setNotConnected] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [athleteName, setAthleteName] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const syncAndReload = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await supabase.functions.invoke("intervals-proxy", {
+        body: { action: "sync" },
+      });
+    } catch (e) {
+      console.error("Auto-sync failed:", e);
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  const fetchData = useCallback(async (autoSync = true) => {
     setLoading(true);
     setError(null);
     setNotConnected(false);
@@ -128,15 +142,23 @@ export function useIntervalsData() {
 
       setWellness(wellnessData);
       setActivities(activityData);
+
+      // Auto-sync if connected but no data yet
+      if (autoSync && wellnessData.length === 0 && activityData.length === 0) {
+        await syncAndReload();
+        // Re-fetch after sync (without triggering another auto-sync)
+        await fetchData(false);
+        return;
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ein Fehler ist aufgetreten");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [syncAndReload]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(true);
   }, [fetchData]);
 
   const latestWellness = wellness.length > 0 ? wellness[wellness.length - 1] : null;
@@ -185,10 +207,12 @@ export function useIntervalsData() {
     currentWeekTSS: Math.round(currentWeekTSS),
     weeklyTSS,
     loading,
+    syncing,
     error,
     notConnected,
     lastSyncAt,
     athleteName,
     refresh: fetchData,
+    syncAndReload,
   };
 }

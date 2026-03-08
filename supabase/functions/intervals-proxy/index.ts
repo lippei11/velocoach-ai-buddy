@@ -370,11 +370,6 @@ Deno.serve(async (req) => {
 
       const data = await apiRes.json();
 
-      await supabaseAdmin
-        .from("athlete_connections")
-        .update({ last_sync_at: new Date().toISOString() })
-        .eq("user_id", userId);
-
       return jsonResponse(data);
     }
 

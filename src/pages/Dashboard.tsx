@@ -76,8 +76,8 @@ function SyncStatusBadge({ lastSyncAt }: { lastSyncAt: string | null }) {
 export default function Dashboard() {
   const {
     state, wellness, activities, latestWellness, last14Wellness,
-    currentWeekTSS, weeklyTSS, loading, error, notConnected,
-    lastSyncAt, athleteName, refresh,
+    currentWeekTSS, weeklyTSS, loading, syncing, error, notConnected,
+    lastSyncAt, athleteName, refresh, syncAndReload,
   } = useIntervalsData();
   const navigate = useNavigate();
 
@@ -110,7 +110,7 @@ export default function Dashboard() {
           <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
           <h2 className="text-lg font-semibold">Fehler beim Laden</h2>
           <p className="text-sm text-muted-foreground">{error}</p>
-          <Button variant="outline" size="sm" onClick={refresh}>
+          <Button variant="outline" size="sm" onClick={() => refresh()}>
             <RefreshCw className="h-4 w-4 mr-2" /> Erneut versuchen
           </Button>
         </div>
@@ -124,20 +124,29 @@ export default function Dashboard() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">Dashboard</h1>
-          <Button variant="outline" size="sm" onClick={refresh}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Aktualisieren
-          </Button>
         </div>
         <div className="rounded-lg border border-border bg-card p-10 text-center space-y-4 max-w-lg mx-auto mt-8">
-          <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto" />
-          <h2 className="text-lg font-semibold">Noch keine Daten</h2>
-          <p className="text-sm text-muted-foreground">
-            Dein Intervals.icu Konto ist verbunden. Starte jetzt deinen ersten Sync, um Aktivitäten und Fitness-Daten zu importieren.
-          </p>
-          <Button onClick={() => navigate("/settings")}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Ersten Sync starten
-          </Button>
+          {syncing ? (
+            <>
+              <RefreshCw className="h-12 w-12 text-primary mx-auto animate-spin" />
+              <h2 className="text-lg font-semibold">Daten werden synchronisiert…</h2>
+              <p className="text-sm text-muted-foreground">
+                Aktivitäten, Wellness und Profil werden von Intervals.icu importiert.
+              </p>
+            </>
+          ) : (
+            <>
+              <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto" />
+              <h2 className="text-lg font-semibold">Noch keine Daten</h2>
+              <p className="text-sm text-muted-foreground">
+                Dein Intervals.icu Konto ist verbunden. Starte jetzt deinen ersten Sync, um Aktivitäten und Fitness-Daten zu importieren.
+              </p>
+              <Button onClick={async () => { await syncAndReload(); refresh(false); }} disabled={syncing}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Jetzt synchronisieren
+              </Button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -176,7 +185,7 @@ export default function Dashboard() {
             <SyncStatusBadge lastSyncAt={lastSyncAt} />
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Aktualisieren
         </Button>
