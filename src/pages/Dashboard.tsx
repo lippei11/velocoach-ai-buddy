@@ -110,7 +110,7 @@ export default function Dashboard() {
           <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
           <h2 className="text-lg font-semibold">Fehler beim Laden</h2>
           <p className="text-sm text-muted-foreground">{error}</p>
-          <Button variant="outline" size="sm" onClick={refresh}>
+          <Button variant="outline" size="sm" onClick={() => refresh()}>
             <RefreshCw className="h-4 w-4 mr-2" /> Erneut versuchen
           </Button>
         </div>
