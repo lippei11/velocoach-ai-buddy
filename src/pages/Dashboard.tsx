@@ -185,7 +185,7 @@ export default function Dashboard() {
             <SyncStatusBadge lastSyncAt={lastSyncAt} />
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Aktualisieren
         </Button>
