@@ -207,10 +207,12 @@ export function useIntervalsData() {
     currentWeekTSS: Math.round(currentWeekTSS),
     weeklyTSS,
     loading,
+    syncing,
     error,
     notConnected,
     lastSyncAt,
     athleteName,
     refresh: fetchData,
+    syncAndReload,
   };
 }
