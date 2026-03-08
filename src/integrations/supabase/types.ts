@@ -76,32 +76,44 @@ export type Database = {
       }
       athlete_connections: {
         Row: {
+          connected_at: string | null
+          connection_status: string
           created_at: string | null
           dexcom_access_token: string | null
           dexcom_refresh_token: string | null
           id: string
           intervals_api_key: string
           intervals_athlete_id: string
+          last_error: string | null
+          last_sync_at: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          connected_at?: string | null
+          connection_status?: string
           created_at?: string | null
           dexcom_access_token?: string | null
           dexcom_refresh_token?: string | null
           id?: string
           intervals_api_key: string
           intervals_athlete_id: string
+          last_error?: string | null
+          last_sync_at?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          connected_at?: string | null
+          connection_status?: string
           created_at?: string | null
           dexcom_access_token?: string | null
           dexcom_refresh_token?: string | null
           id?: string
           intervals_api_key?: string
           intervals_athlete_id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
           updated_at?: string | null
           user_id?: string
         }
