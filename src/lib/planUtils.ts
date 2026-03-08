@@ -53,15 +53,16 @@ export function generateMockPhases(eventDate: Date): Phase[] {
   const now = new Date();
   const totalWeeks = Math.max(4, differenceInWeeks(eventDate, now));
 
-  const taperWeeks = 2;
-  const peakWeeks = Math.min(3, Math.floor(totalWeeks * 0.15));
-  const buildWeeks = Math.min(8, Math.floor(totalWeeks * 0.4));
+  const { taperWeeks, peakRatio, peakMax, buildRatio, buildMax } = PHASE_DISTRIBUTION;
+  const peakWeeks = Math.min(peakMax, Math.floor(totalWeeks * peakRatio));
+  const buildWeeks = Math.min(buildMax, Math.floor(totalWeeks * buildRatio));
   const baseWeeks = Math.max(2, totalWeeks - taperWeeks - peakWeeks - buildWeeks);
 
   const phases: Phase[] = [];
   let cursor = now;
 
-  const addPhase = (type: PhaseType, weeks: number, ctlRange: [number, number], tss: number, focus: string) => {
+  const addPhase = (type: PhaseType, weeks: number) => {
+    const defaults = PHASE_DEFAULTS[type];
     const start = new Date(cursor);
     const end = addWeeks(cursor, weeks);
     phases.push({
@@ -70,17 +71,17 @@ export function generateMockPhases(eventDate: Date): Phase[] {
       startDate: format(start, "yyyy-MM-dd"),
       endDate: format(end, "yyyy-MM-dd"),
       weeks,
-      targetCTLRange: ctlRange,
-      weeklyTSSTarget: tss,
-      workoutFocus: focus,
+      targetCTLRange: defaults.ctlRange,
+      weeklyTSSTarget: defaults.weeklyTSS,
+      workoutFocus: defaults.focus,
     });
     cursor = end;
   };
 
-  addPhase("BASE", baseWeeks, [48, 62], 350, "Z1-Z2 Endurance");
-  addPhase("BUILD", buildWeeks, [62, 75], 420, "Threshold + Sweet Spot");
-  addPhase("PEAK", peakWeeks, [75, 85], 480, "VO2max + Race-Specific");
-  addPhase("TAPER", taperWeeks, [72, 80], 280, "Volume ↓, Intensity maintained");
+  addPhase("BASE", baseWeeks);
+  addPhase("BUILD", buildWeeks);
+  addPhase("PEAK", peakWeeks);
+  addPhase("TAPER", taperWeeks);
 
   return phases;
 }
