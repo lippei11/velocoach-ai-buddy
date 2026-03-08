@@ -77,7 +77,8 @@ serve(async (req) => {
           method: "POST",
           headers: proxyHeaders,
           body: JSON.stringify({
-            endpoint: "/athlete/{id}/wellness",
+            action: "fetch",
+            endpoint: "wellness",
             params: { oldest, newest },
           }),
         }),
@@ -85,7 +86,8 @@ serve(async (req) => {
           method: "POST",
           headers: proxyHeaders,
           body: JSON.stringify({
-            endpoint: "/athlete/{id}/activities",
+            action: "fetch",
+            endpoint: "activities",
             params: { oldest, newest },
           }),
         }),
