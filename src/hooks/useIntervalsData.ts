@@ -143,6 +143,7 @@ export function useIntervalsData() {
     weeklyTSS,
     loading,
     error,
+    notConnected,
     refresh: fetchData,
   };
 }
