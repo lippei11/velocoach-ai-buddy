@@ -1,0 +1,1 @@
+ALTER TABLE public.athlete_connections ADD CONSTRAINT athlete_connections_user_id_unique UNIQUE (user_id);
