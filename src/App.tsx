@@ -63,6 +63,7 @@ const AppRoutes = () => {
         <Route path="/plan" element={<TrainingPlan />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/activities/:id" element={<ActivityDetail />} />
       </Route>
       <Route path="/" element={<Navigate to={session ? "/dashboard" : "/auth"} replace />} />
       <Route path="*" element={<NotFound />} />
