@@ -1,4 +1,4 @@
-import { RefreshCw, TrendingUp, TrendingDown, Minus, Activity, Bike, Run, Dumbbell, Waves } from "lucide-react";
+import { RefreshCw, TrendingUp, TrendingDown, Minus, Activity, Bike, Footprints, Dumbbell, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
