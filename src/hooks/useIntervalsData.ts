@@ -35,12 +35,16 @@ export interface WeeklyTSS {
   tss: number;
 }
 
+export type DashboardState = "loading" | "not-connected" | "no-data" | "error" | "ready";
+
 export function useIntervalsData() {
   const [wellness, setWellness] = useState<WellnessRecord[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notConnected, setNotConnected] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [athleteName, setAthleteName] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -50,7 +54,7 @@ export function useIntervalsData() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setError("Not authenticated. Please log in.");
+        setError("Bitte melde dich an, um deine Daten zu sehen.");
         setLoading(false);
         return;
       }
@@ -66,8 +70,10 @@ export function useIntervalsData() {
         return;
       }
 
-      // Read from Supabase tables (synced data)
-      const [wellnessRes, activitiesRes] = await Promise.all([
+      setLastSyncAt(checkRes.data.lastSyncAt ?? null);
+
+      // Read from Supabase tables (synced data) + athlete profile
+      const [wellnessRes, activitiesRes, profileRes] = await Promise.all([
         supabase
           .from("wellness_days")
           .select("*")
@@ -80,10 +86,17 @@ export function useIntervalsData() {
           .eq("user_id", session.user.id)
           .order("start_date", { ascending: false })
           .limit(200),
+        supabase
+          .from("athlete_profiles")
+          .select("name")
+          .eq("user_id", session.user.id)
+          .maybeSingle(),
       ]);
 
       if (wellnessRes.error) throw new Error(wellnessRes.error.message);
       if (activitiesRes.error) throw new Error(activitiesRes.error.message);
+
+      setAthleteName(profileRes.data?.name ?? null);
 
       const wellnessData: WellnessRecord[] = (wellnessRes.data ?? []).map((w) => ({
         id: w.id,
@@ -116,7 +129,7 @@ export function useIntervalsData() {
       setWellness(wellnessData);
       setActivities(activityData);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "Ein Fehler ist aufgetreten");
     } finally {
       setLoading(false);
     }
@@ -156,7 +169,15 @@ export function useIntervalsData() {
     return weeks;
   })();
 
+  // Derive dashboard state
+  let state: DashboardState = "ready";
+  if (loading) state = "loading";
+  else if (notConnected) state = "not-connected";
+  else if (error) state = "error";
+  else if (activities.length === 0 && wellness.length === 0) state = "no-data";
+
   return {
+    state,
     wellness,
     activities,
     latestWellness,
@@ -166,6 +187,8 @@ export function useIntervalsData() {
     loading,
     error,
     notConnected,
+    lastSyncAt,
+    athleteName,
     refresh: fetchData,
   };
 }

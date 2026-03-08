@@ -1,7 +1,8 @@
-import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings } from "lucide-react";
+import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings, Clock, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -9,9 +10,11 @@ import {
 } from "recharts";
 import { useIntervalsData } from "@/hooks/useIntervalsData";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
+import { de } from "date-fns/locale";
 
 function Sparkline({ data, color }: { data: { v: number }[]; color: string }) {
+  if (data.length < 2) return null;
   return (
     <div className="h-8 w-24">
       <ResponsiveContainer width="100%" height="100%">
@@ -39,7 +42,7 @@ function tsbLabel(tsb: number | null) {
 
 function sportIcon(type: string | null) {
   const t = type?.toLowerCase() ?? "";
-  if (t.includes("ride") || t.includes("cycling")) return <Bike className="h-4 w-4" />;
+  if (t.includes("ride") || t.includes("cycling") || t.includes("virtual")) return <Bike className="h-4 w-4" />;
   if (t.includes("run")) return <Footprints className="h-4 w-4" />;
   if (t.includes("swim")) return <Waves className="h-4 w-4" />;
   if (t.includes("weight") || t.includes("strength")) return <Dumbbell className="h-4 w-4" />;
@@ -52,80 +55,98 @@ function formatDuration(seconds: number) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function SyncStatusBadge({ lastSyncAt }: { lastSyncAt: string | null }) {
+  if (!lastSyncAt) {
+    return (
+      <Badge variant="outline" className="gap-1 text-xs font-normal">
+        <Clock className="h-3 w-3" />
+        Noch nicht synchronisiert
+      </Badge>
+    );
+  }
+  const ago = formatDistanceToNow(new Date(lastSyncAt), { addSuffix: true, locale: de });
+  return (
+    <Badge variant="secondary" className="gap-1 text-xs font-normal">
+      <Clock className="h-3 w-3" />
+      Sync {ago}
+    </Badge>
+  );
+}
+
 export default function Dashboard() {
   const {
-    wellness, activities, latestWellness, last14Wellness,
-    currentWeekTSS, weeklyTSS, loading, error, notConnected, refresh,
+    state, wellness, activities, latestWellness, last14Wellness,
+    currentWeekTSS, weeklyTSS, loading, error, notConnected,
+    lastSyncAt, athleteName, refresh,
   } = useIntervalsData();
   const navigate = useNavigate();
 
-  if (notConnected) {
+  // --- Not Connected ---
+  if (state === "not-connected") {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-8 text-center space-y-4">
-          <Bike className="h-10 w-10 text-primary mx-auto" />
-          <h2 className="text-lg font-medium">Intervals.icu verbinden</h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Verbinde dein Intervals.icu Konto in den Settings und klicke "Sync now", um deine Daten zu importieren.
+        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <div className="rounded-lg border border-border bg-card p-10 text-center space-y-4 max-w-lg mx-auto mt-12">
+          <Bike className="h-12 w-12 text-primary mx-auto" />
+          <h2 className="text-lg font-semibold">Willkommen bei VeloCoach AI</h2>
+          <p className="text-sm text-muted-foreground">
+            Verbinde dein Intervals.icu Konto, um deine Fitness-, Belastungs- und Aktivitätsdaten hier zu sehen.
           </p>
-          <Button onClick={() => navigate("/settings")}>
+          <Button onClick={() => navigate("/settings")} className="mt-2">
             <Settings className="h-4 w-4 mr-2" />
-            Zu den Settings
+            Intervals.icu verbinden
           </Button>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  // --- Error ---
+  if (state === "error") {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-        </div>
-        <div className="rounded-lg border border-destructive/50 bg-card p-8 text-center space-y-4">
-          <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
+        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <div className="rounded-lg border border-destructive/50 bg-card p-10 text-center space-y-4 max-w-lg mx-auto mt-12">
+          <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+          <h2 className="text-lg font-semibold">Fehler beim Laden</h2>
           <p className="text-sm text-muted-foreground">{error}</p>
           <Button variant="outline" size="sm" onClick={refresh}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Retry
+            <RefreshCw className="h-4 w-4 mr-2" /> Erneut versuchen
           </Button>
         </div>
       </div>
     );
   }
 
-  // Show empty state if connected but no data synced yet
-  if (!loading && activities.length === 0 && wellness.length === 0) {
+  // --- No Data (connected but not synced) ---
+  if (state === "no-data") {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">Dashboard</h1>
-          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+          <Button variant="outline" size="sm" onClick={refresh}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Aktualisieren
           </Button>
         </div>
-        <div className="rounded-lg border border-border bg-card p-8 text-center space-y-4">
-          <RefreshCw className="h-10 w-10 text-muted-foreground mx-auto" />
-          <h2 className="text-lg font-medium">Keine Daten vorhanden</h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Gehe zu Settings → Intervals.icu und klicke "Sync now", um deine Aktivitäten und Wellness-Daten zu importieren.
+        <div className="rounded-lg border border-border bg-card p-10 text-center space-y-4 max-w-lg mx-auto mt-8">
+          <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h2 className="text-lg font-semibold">Noch keine Daten</h2>
+          <p className="text-sm text-muted-foreground">
+            Dein Intervals.icu Konto ist verbunden. Starte jetzt deinen ersten Sync, um Aktivitäten und Fitness-Daten zu importieren.
           </p>
           <Button onClick={() => navigate("/settings")}>
-            <Settings className="h-4 w-4 mr-2" />
-            Zu den Settings
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Ersten Sync starten
           </Button>
         </div>
       </div>
     );
   }
 
+  // --- Ready / Loading with data ---
   const ctl = latestWellness?.ctl ?? null;
   const atl = latestWellness?.atl ?? null;
   const tsb = latestWellness?.tsb ?? (ctl != null && atl != null ? ctl - atl : null);
-
   const sparklineData = last14Wellness.map((d) => ({ v: d.ctl ?? 0 }));
 
   const chartData = wellness.map((w) => ({
@@ -147,10 +168,17 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <div>
+          <h1 className="text-xl font-semibold">
+            {athleteName ? `Hey ${athleteName}` : "Dashboard"}
+          </h1>
+          <div className="mt-1">
+            <SyncStatusBadge lastSyncAt={lastSyncAt} />
+          </div>
+        </div>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Aktualisieren
         </Button>
       </div>
 
@@ -170,9 +198,9 @@ export default function Dashboard() {
           <>
             <Card>
               <CardContent className="p-4 space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Fitness</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Fitness (CTL)</p>
                 <span className="text-2xl font-bold font-mono text-blue-400">
-                  {ctl?.toFixed(0) ?? "—"}
+                  {ctl != null ? ctl.toFixed(0) : "—"}
                 </span>
                 <Sparkline data={sparklineData} color="#3B82F6" />
               </CardContent>
@@ -180,16 +208,16 @@ export default function Dashboard() {
 
             <Card>
               <CardContent className="p-4 space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Fatigue</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Fatigue (ATL)</p>
                 <span className="text-2xl font-bold font-mono text-orange-400">
-                  {atl?.toFixed(0) ?? "—"}
+                  {atl != null ? atl.toFixed(0) : "—"}
                 </span>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-4 space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Form</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Form (TSB)</p>
                 <div className="flex items-center gap-2">
                   <span className={`text-2xl font-bold font-mono ${tsbColor(tsb)}`}>
                     {tsb != null ? tsb.toFixed(0) : "—"}
@@ -203,7 +231,7 @@ export default function Dashboard() {
 
             <Card>
               <CardContent className="p-4 space-y-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">This Week</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Woche</p>
                 <span className="text-2xl font-bold font-mono">{currentWeekTSS}</span>
                 <p className="text-xs text-muted-foreground">TSS</p>
               </CardContent>
@@ -216,11 +244,13 @@ export default function Dashboard() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Fitness / Fatigue / Form (42d)</CardTitle>
+            <CardTitle className="text-sm font-medium">Fitness / Fatigue / Form (42 Tage)</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
               <Skeleton className="h-[250px] w-full" />
+            ) : chartData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-16">Keine Wellness-Daten verfügbar</p>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={chartData}>
@@ -229,7 +259,7 @@ export default function Dashboard() {
                     dataKey="date"
                     tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                     tickFormatter={(v) => {
-                      try { return format(new Date(v), "MMM d"); } catch { return v; }
+                      try { return format(new Date(v), "d. MMM", { locale: de }); } catch { return v; }
                     }}
                   />
                   <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
@@ -240,11 +270,14 @@ export default function Dashboard() {
                       borderRadius: 8,
                       fontSize: 12,
                     }}
+                    labelFormatter={(v) => {
+                      try { return format(new Date(v), "dd.MM.yyyy"); } catch { return v; }
+                    }}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Line type="monotone" dataKey="CTL" stroke="#3B82F6" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="ATL" stroke="#F97316" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="TSB" stroke="#22C55E" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="CTL" stroke="#3B82F6" strokeWidth={2} dot={false} name="Fitness" />
+                  <Line type="monotone" dataKey="ATL" stroke="#F97316" strokeWidth={2} dot={false} name="Fatigue" />
+                  <Line type="monotone" dataKey="TSB" stroke="#22C55E" strokeWidth={2} dot={false} name="Form" />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -253,7 +286,7 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Weekly TSS (8 weeks)</CardTitle>
+            <CardTitle className="text-sm font-medium">Wochenbelastung (8 Wochen)</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -277,7 +310,7 @@ export default function Dashboard() {
                       y={ctlTarget}
                       stroke="#F97316"
                       strokeDasharray="4 4"
-                      label={{ value: `Target ${ctlTarget}`, fill: "#F97316", fontSize: 10, position: "right" }}
+                      label={{ value: `Ziel ${ctlTarget}`, fill: "#F97316", fontSize: 10, position: "right" }}
                     />
                   )}
                   <Bar
@@ -301,7 +334,10 @@ export default function Dashboard() {
       {/* Recent Activities */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Recent Activities</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">Letzte Aktivitäten</CardTitle>
+            <span className="text-xs text-muted-foreground">{activities.length} gesamt</span>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -309,16 +345,16 @@ export default function Dashboard() {
               {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : last10.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">No recent activities found</p>
+            <p className="text-sm text-muted-foreground py-8 text-center">Keine Aktivitäten gefunden</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs">Datum</TableHead>
                     <TableHead className="text-xs">Name</TableHead>
-                    <TableHead className="text-xs">Type</TableHead>
-                    <TableHead className="text-xs text-right">Duration</TableHead>
+                    <TableHead className="text-xs">Typ</TableHead>
+                    <TableHead className="text-xs text-right">Dauer</TableHead>
                     <TableHead className="text-xs text-right">TSS</TableHead>
                     <TableHead className="text-xs text-right">NP</TableHead>
                     <TableHead className="text-xs text-right">IF</TableHead>
@@ -328,18 +364,18 @@ export default function Dashboard() {
                   {last10.map((a, idx) => (
                     <TableRow
                       key={a.id}
-                      className={`cursor-pointer hover:bg-accent/50 transition-colors ${
+                      className={`hover:bg-accent/50 transition-colors ${
                         idx % 2 === 1 ? "bg-muted/30" : ""
                       }`}
                     >
                       <TableCell className="text-xs font-mono">
                         {(() => {
-                          try { return format(new Date(a.start_date), "MMM d"); }
+                          try { return format(new Date(a.start_date), "dd.MM."); }
                           catch { return "—"; }
                         })()}
                       </TableCell>
                       <TableCell className="text-sm font-medium max-w-[200px] truncate">
-                        {a.name || "Untitled"}
+                        {a.name || "Ohne Titel"}
                       </TableCell>
                       <TableCell>{sportIcon(a.sport_type)}</TableCell>
                       <TableCell className="text-right text-xs font-mono">
