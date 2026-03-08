@@ -119,6 +119,57 @@ export type Database = {
         }
         Relationships: []
       }
+      athlete_profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          ftp: number | null
+          id: string
+          intervals_athlete_id: string | null
+          max_hr: number | null
+          name: string | null
+          raw_data: Json | null
+          resting_hr: number | null
+          sport_types: Json | null
+          synced_at: string | null
+          updated_at: string | null
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          ftp?: number | null
+          id?: string
+          intervals_athlete_id?: string | null
+          max_hr?: number | null
+          name?: string | null
+          raw_data?: Json | null
+          resting_hr?: number | null
+          sport_types?: Json | null
+          synced_at?: string | null
+          updated_at?: string | null
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          ftp?: number | null
+          id?: string
+          intervals_athlete_id?: string | null
+          max_hr?: number | null
+          name?: string | null
+          raw_data?: Json | null
+          resting_hr?: number | null
+          sport_types?: Json | null
+          synced_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
