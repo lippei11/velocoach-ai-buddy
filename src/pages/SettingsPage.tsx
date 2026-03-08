@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings, User, Link2, Dumbbell, Puzzle, CheckCircle2, XCircle, Wifi, WifiOff } from "lucide-react";
+import { Settings, User, Dumbbell, Puzzle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import IntervalsConnectionCard from "@/components/settings/IntervalsConnectionCard";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
