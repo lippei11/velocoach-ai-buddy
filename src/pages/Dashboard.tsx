@@ -373,9 +373,10 @@ export default function Dashboard() {
                   {last10.map((a, idx) => (
                     <TableRow
                       key={a.id}
-                      className={`hover:bg-accent/50 transition-colors ${
+                      className={`hover:bg-accent/50 transition-colors cursor-pointer ${
                         idx % 2 === 1 ? "bg-muted/30" : ""
                       }`}
+                      onClick={() => navigate(`/activities/${a.id}`)}
                     >
                       <TableCell className="text-xs font-mono">
                         {(() => {
