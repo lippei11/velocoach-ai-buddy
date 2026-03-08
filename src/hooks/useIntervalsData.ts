@@ -52,16 +52,36 @@ export function useIntervalsData() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notConnected, setNotConnected] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-
-    const today = format(new Date(), "yyyy-MM-dd");
-    const oldest42 = format(subDays(new Date(), 42), "yyyy-MM-dd");
-    const oldest60 = format(subDays(new Date(), 60), "yyyy-MM-dd");
+    setNotConnected(false);
 
     try {
+      // Check connection first
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError("Not authenticated. Please log in.");
+        setLoading(false);
+        return;
+      }
+
+      const checkRes = await supabase.functions.invoke("intervals-proxy", {
+        body: { action: "check-connection" },
+      });
+
+      if (!checkRes.data?.connected) {
+        setNotConnected(true);
+        setLoading(false);
+        return;
+      }
+
+      const today = format(new Date(), "yyyy-MM-dd");
+      const oldest42 = format(subDays(new Date(), 42), "yyyy-MM-dd");
+      const oldest60 = format(subDays(new Date(), 60), "yyyy-MM-dd");
+
       const [wellnessData, activitiesData] = await Promise.all([
         proxyFetch("wellness", { oldest: oldest42, newest: today }),
         proxyFetch("activities", {
@@ -123,6 +143,7 @@ export function useIntervalsData() {
     weeklyTSS,
     loading,
     error,
+    notConnected,
     refresh: fetchData,
   };
 }

@@ -1,4 +1,4 @@
-import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle } from "lucide-react";
+import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, Legend, ReferenceLine
 } from "recharts";
 import { useIntervalsData } from "@/hooks/useIntervalsData";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 
 function Sparkline({ data, color }: { data: { v: number }[]; color: string }) {
@@ -54,8 +55,30 @@ function formatDuration(seconds: number) {
 export default function Dashboard() {
   const {
     wellness, activities, latestWellness, last14Wellness,
-    currentWeekTSS, weeklyTSS, loading, error, refresh,
+    currentWeekTSS, weeklyTSS, loading, error, notConnected, refresh,
   } = useIntervalsData();
+  const navigate = useNavigate();
+
+  if (notConnected) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">Dashboard</h1>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-8 text-center space-y-4">
+          <Bike className="h-10 w-10 text-primary mx-auto" />
+          <h2 className="text-lg font-medium">Intervals.icu verbinden</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Verbinde dein Intervals.icu Konto in den Settings, um Fitness-, Fatigue- und Aktivitätsdaten hier zu sehen.
+          </p>
+          <Button onClick={() => navigate("/settings")}>
+            <Settings className="h-4 w-4 mr-2" />
+            Zu den Settings
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
