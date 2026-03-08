@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          avg_hr: number | null
+          created_at: string | null
+          distance_meters: number | null
+          duration_seconds: number | null
+          external_id: string
+          ftp_at_time: number | null
+          id: string
+          intensity_factor: number | null
+          name: string | null
+          normalized_power: number | null
+          raw_data: Json | null
+          source: string
+          sport_type: string | null
+          start_date: string
+          tss: number | null
+          user_id: string
+          zone_times: Json | null
+        }
+        Insert: {
+          avg_hr?: number | null
+          created_at?: string | null
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          external_id: string
+          ftp_at_time?: number | null
+          id?: string
+          intensity_factor?: number | null
+          name?: string | null
+          normalized_power?: number | null
+          raw_data?: Json | null
+          source?: string
+          sport_type?: string | null
+          start_date: string
+          tss?: number | null
+          user_id: string
+          zone_times?: Json | null
+        }
+        Update: {
+          avg_hr?: number | null
+          created_at?: string | null
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          external_id?: string
+          ftp_at_time?: number | null
+          id?: string
+          intensity_factor?: number | null
+          name?: string | null
+          normalized_power?: number | null
+          raw_data?: Json | null
+          source?: string
+          sport_type?: string | null
+          start_date?: string
+          tss?: number | null
+          user_id?: string
+          zone_times?: Json | null
+        }
+        Relationships: []
+      }
       athlete_connections: {
         Row: {
           created_at: string | null
@@ -103,6 +163,166 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_adjustments: {
+        Row: {
+          affected_workout_ids: Json | null
+          changes: Json
+          created_at: string | null
+          explanation: string | null
+          id: string
+          plan_id: string
+          reason: string
+          trigger_type: string
+          user_id: string
+        }
+        Insert: {
+          affected_workout_ids?: Json | null
+          changes?: Json
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          plan_id: string
+          reason: string
+          trigger_type: string
+          user_id: string
+        }
+        Update: {
+          affected_workout_ids?: Json | null
+          changes?: Json
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          plan_id?: string
+          reason?: string
+          trigger_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_adjustments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planned_workouts: {
+        Row: {
+          created_at: string | null
+          date: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          intervals_event_id: string | null
+          name: string
+          plan_id: string | null
+          purpose: string | null
+          synced_to_intervals: boolean | null
+          tss_target: number | null
+          user_id: string
+          workout_type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          intervals_event_id?: string | null
+          name: string
+          plan_id?: string | null
+          purpose?: string | null
+          synced_to_intervals?: boolean | null
+          tss_target?: number | null
+          user_id: string
+          workout_type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          intervals_event_id?: string | null
+          name?: string
+          plan_id?: string | null
+          purpose?: string | null
+          synced_to_intervals?: boolean | null
+          tss_target?: number | null
+          user_id?: string
+          workout_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_workouts_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          available_days: Json | null
+          created_at: string | null
+          current_ctl: number | null
+          event_date: string | null
+          fitness_context: string | null
+          goal_event: string | null
+          goal_type: string | null
+          hours_per_week: number | null
+          id: string
+          phases: Json | null
+          philosophy: string | null
+          race_priority: string | null
+          rationale: string | null
+          status: string
+          target_ctl: number | null
+          user_id: string
+          version: number
+        }
+        Insert: {
+          available_days?: Json | null
+          created_at?: string | null
+          current_ctl?: number | null
+          event_date?: string | null
+          fitness_context?: string | null
+          goal_event?: string | null
+          goal_type?: string | null
+          hours_per_week?: number | null
+          id?: string
+          phases?: Json | null
+          philosophy?: string | null
+          race_priority?: string | null
+          rationale?: string | null
+          status?: string
+          target_ctl?: number | null
+          user_id: string
+          version?: number
+        }
+        Update: {
+          available_days?: Json | null
+          created_at?: string | null
+          current_ctl?: number | null
+          event_date?: string | null
+          fitness_context?: string | null
+          goal_event?: string | null
+          goal_type?: string | null
+          hours_per_week?: number | null
+          id?: string
+          phases?: Json | null
+          philosophy?: string | null
+          race_priority?: string | null
+          rationale?: string | null
+          status?: string
+          target_ctl?: number | null
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       training_plans: {
         Row: {
           event_date: string | null
@@ -133,6 +353,54 @@ export type Database = {
           plan_data?: Json
           synced_to_intervals?: boolean | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      wellness_days: {
+        Row: {
+          atl: number | null
+          created_at: string | null
+          ctl: number | null
+          date: string
+          hrv: number | null
+          id: string
+          ramp_rate: number | null
+          resting_hr: number | null
+          sleep_score: number | null
+          source: string | null
+          tsb: number | null
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          atl?: number | null
+          created_at?: string | null
+          ctl?: number | null
+          date: string
+          hrv?: number | null
+          id?: string
+          ramp_rate?: number | null
+          resting_hr?: number | null
+          sleep_score?: number | null
+          source?: string | null
+          tsb?: number | null
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          atl?: number | null
+          created_at?: string | null
+          ctl?: number | null
+          date?: string
+          hrv?: number | null
+          id?: string
+          ramp_rate?: number | null
+          resting_hr?: number | null
+          sleep_score?: number | null
+          source?: string | null
+          tsb?: number | null
+          user_id?: string
+          weight?: number | null
         }
         Relationships: []
       }
