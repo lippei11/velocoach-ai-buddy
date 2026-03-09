@@ -231,14 +231,14 @@ export default function ActivityDetail() {
 
       const [actRes, connRes] = await Promise.all([
         supabase.from("activities").select("*").eq("id", id).eq("user_id", session.user.id).maybeSingle(),
-        supabase.from("athlete_connections").select("dexcom_access_token").eq("user_id", session.user.id).maybeSingle(),
+        supabase.from("athlete_connections").select("dexcom_connected, dexcom_session_id").eq("user_id", session.user.id).maybeSingle(),
       ]);
 
       const act = actRes.data as ActivityRow | null;
       setActivity(act);
 
-      // Dexcom connected if access token exists
-      const hasDexcom = !!(connRes.data?.dexcom_access_token);
+      // Dexcom connected flag from the new dedicated column
+      const hasDexcom = !!(connRes.data?.dexcom_connected);
       setDexcomConnected(hasDexcom);
 
       if (act) {
