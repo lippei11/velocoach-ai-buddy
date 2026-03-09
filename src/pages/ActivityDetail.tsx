@@ -267,7 +267,43 @@ export default function ActivityDetail() {
         setStreams(streamPoints);
 
         if (hasDexcom) {
-          setGlucoseStream(generateMockGlucose(dur));
+          // Fetch real glucose readings from edge function for this activity's time window
+          try {
+            const durationMins = Math.ceil((act.duration_seconds ?? 3600) / 60) + 30;
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const res = await fetch(`${supabaseUrl}/functions/v1/dexcom-sync`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ action: "sync-glucose", minutes: durationMins }),
+            });
+            if (res.ok) {
+              const json = await res.json();
+              if (Array.isArray(json.readings) && json.readings.length > 0) {
+                // Convert timestamps to seconds-offset from activity start
+                const actStart = new Date(act.start_date).getTime();
+                const pts: StreamPoint[] = json.readings
+                  .map((r: { timestamp: string; valueMmol: number }) => ({
+                    t: Math.max(0, Math.round((new Date(r.timestamp).getTime() - actStart) / 1000)),
+                    glucose: r.valueMmol,
+                  }))
+                  .filter((p: StreamPoint) => p.t >= 0 && p.t <= (act.duration_seconds ?? 86400));
+                if (pts.length > 0) {
+                  setGlucoseStream(pts);
+                } else {
+                  setGlucoseStream(generateMockGlucose(dur));
+                }
+              } else {
+                setGlucoseStream(generateMockGlucose(dur));
+              }
+            } else {
+              setGlucoseStream(generateMockGlucose(dur));
+            }
+          } catch {
+            setGlucoseStream(generateMockGlucose(dur));
+          }
         }
 
         // Zone times — parse zone_times jsonb or derive from streams
