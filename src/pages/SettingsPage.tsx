@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import IntervalsConnectionCard from "@/components/settings/IntervalsConnectionCard";
+import DexcomConnectionCard from "@/components/settings/DexcomConnectionCard";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 

@@ -79,7 +79,7 @@ export default function DexcomConnectionCard() {
             <CardTitle className="text-base">Dexcom CGM</CardTitle>
           </div>
           {status.connected ? (
-            <Badge className="gap-1.5 text-[10px] bg-emerald-500/15 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20">
+            <Badge className="gap-1.5 text-[10px] bg-primary/10 text-primary border-primary/20 hover:bg-primary/15">
               <CheckCircle2 className="h-3 w-3" /> Connected
             </Badge>
           ) : (
