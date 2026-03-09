@@ -80,7 +80,14 @@ export type Database = {
           connection_status: string
           created_at: string | null
           dexcom_access_token: string | null
+          dexcom_connected: boolean | null
+          dexcom_connected_at: string | null
+          dexcom_last_error: string | null
+          dexcom_last_sync_at: string | null
+          dexcom_password_vault_id: string | null
           dexcom_refresh_token: string | null
+          dexcom_session_id: string | null
+          dexcom_username: string | null
           id: string
           intervals_api_key: string
           intervals_athlete_id: string
@@ -94,7 +101,14 @@ export type Database = {
           connection_status?: string
           created_at?: string | null
           dexcom_access_token?: string | null
+          dexcom_connected?: boolean | null
+          dexcom_connected_at?: string | null
+          dexcom_last_error?: string | null
+          dexcom_last_sync_at?: string | null
+          dexcom_password_vault_id?: string | null
           dexcom_refresh_token?: string | null
+          dexcom_session_id?: string | null
+          dexcom_username?: string | null
           id?: string
           intervals_api_key: string
           intervals_athlete_id: string
@@ -108,7 +122,14 @@ export type Database = {
           connection_status?: string
           created_at?: string | null
           dexcom_access_token?: string | null
+          dexcom_connected?: boolean | null
+          dexcom_connected_at?: string | null
+          dexcom_last_error?: string | null
+          dexcom_last_sync_at?: string | null
+          dexcom_password_vault_id?: string | null
           dexcom_refresh_token?: string | null
+          dexcom_session_id?: string | null
+          dexcom_username?: string | null
           id?: string
           intervals_api_key?: string
           intervals_athlete_id?: string
