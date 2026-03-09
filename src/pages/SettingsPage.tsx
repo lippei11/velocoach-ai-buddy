@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { Settings, User, Dumbbell, Puzzle } from "lucide-react";
+import { Settings, User, Dumbbell } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import IntervalsConnectionCard from "@/components/settings/IntervalsConnectionCard";
+import DexcomConnectionCard from "@/components/settings/DexcomConnectionCard";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -152,27 +152,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* 4. Integrations */}
-      <Card className="opacity-50 pointer-events-none">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Puzzle className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base text-muted-foreground">Dexcom CGM</CardTitle>
-            </div>
-            <Badge variant="secondary" className="text-[10px]">Coming in a future version</Badge>
-          </div>
-          <CardDescription>
-            Real-time glucose monitoring for fueling insights
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Not available yet</span>
-            <Button size="sm" variant="outline" disabled>Connect</Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* 4. Dexcom CGM */}
+      <DexcomConnectionCard />
     </div>
   );
 }
