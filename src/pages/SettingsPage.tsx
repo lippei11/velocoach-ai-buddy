@@ -153,27 +153,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* 4. Integrations */}
-      <Card className="opacity-50 pointer-events-none">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Puzzle className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base text-muted-foreground">Dexcom CGM</CardTitle>
-            </div>
-            <Badge variant="secondary" className="text-[10px]">Coming in a future version</Badge>
-          </div>
-          <CardDescription>
-            Real-time glucose monitoring for fueling insights
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Not available yet</span>
-            <Button size="sm" variant="outline" disabled>Connect</Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* 4. Dexcom CGM */}
+      <DexcomConnectionCard />
     </div>
   );
 }
