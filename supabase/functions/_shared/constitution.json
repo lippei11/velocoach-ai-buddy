@@ -1,0 +1,33 @@
+{
+  "version": "7",
+  "zone_model": {
+    "Z1": [0, 55], "Z2": [56, 75], "Z3": [76, 87],
+    "SS": [88, 93], "Z4": [94, 105], "Z5": [106, 120], "Z6": [121, 999]
+  },
+  "ftp_stale_days": 56,
+  "ftp_stale_zone_factor": 0.96,
+  "re_entry_gap_days": 14,
+  "stress_budget_defaults": {
+    "threshold_per_week": 2,
+    "vo2max_per_week": 1,
+    "neuromuscular_per_week": 1,
+    "durability_blocks_per_week": 1
+  },
+  "guardrails": {
+    "G1": "No workout on unavailable day",
+    "G3": "No back-to-back THRESHOLD and VO2MAX",
+    "G4": "Max 2 metabolic hard sessions per week (default)",
+    "G5": "TSS ramp rate cap",
+    "G11": "FTP stale zone adjustment"
+  },
+  "cadence_required_for": ["vo2max", "climb_simulation", "neuromuscular"],
+  "typology_defaults": {
+    "steady_climbing": "PYRAMIDAL",
+    "time_trial": "SS_THRESHOLD",
+    "punchy_stochastic": "PYRAMIDAL",
+    "long_gravel": "PYRAMIDAL",
+    "ultra_endurance": "POLARIZED",
+    "ftp_build": "SS_THRESHOLD",
+    "mixed_hobby_fitness": "PYRAMIDAL"
+  }
+}
