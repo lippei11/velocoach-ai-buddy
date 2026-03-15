@@ -44,7 +44,7 @@ export default function Activities() {
           <CardContent className="py-8 text-center space-y-4">
             <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
             <p className="text-muted-foreground text-sm">{error}</p>
-            <Button onClick={refresh} variant="outline" size="sm">
+            <Button onClick={() => refresh()} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" /> Retry
             </Button>
           </CardContent>
