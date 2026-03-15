@@ -1,4 +1,4 @@
-import { Bike, LayoutDashboard, Calendar, MessageSquare, Settings, ChevronLeft, LogOut } from "lucide-react";
+import { Bike, LayoutDashboard, Calendar, Activity, MessageSquare, Settings, ChevronLeft, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
