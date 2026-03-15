@@ -34,7 +34,7 @@ export default function Activities() {
           <Activity className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold">Activities</h1>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
         </Button>
       </div>
