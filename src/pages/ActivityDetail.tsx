@@ -393,8 +393,8 @@ export default function ActivityDetail() {
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
 
       {/* ── Back nav ── */}
-      <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate("/dashboard")}>
-        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+      <Button variant="ghost" size="sm" className="-ml-2" onClick={() => navigate("/activities")}>
+        <ArrowLeft className="h-4 w-4 mr-2" /> Alle Aktivitäten
       </Button>
 
       {/* ── Header ── */}
