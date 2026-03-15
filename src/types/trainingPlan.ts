@@ -34,7 +34,7 @@ export interface CompletedWorkout {
   ftp: number | null;
 }
 
-export type WorkoutType = "endurance" | "sweetspot" | "vo2max" | "longride" | "recovery" | "rest";
+export type WorkoutType = "endurance" | "sweetspot" | "vo2max" | "longride" | "recovery" | "rest" | "threshold" | "durability" | "strength";
 
 export interface DayData {
   date: string;
