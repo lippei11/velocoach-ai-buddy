@@ -140,6 +140,57 @@ export type Database = {
         }
         Relationships: []
       }
+      athlete_preferences: {
+        Row: {
+          available_days: Json | null
+          constraints_notes: string | null
+          created_at: string | null
+          event_date: string | null
+          event_demand_profile: string | null
+          event_name: string | null
+          goal_type: string | null
+          hours_per_week: number | null
+          id: string
+          prefer_indoor_intervals: boolean | null
+          prefer_outdoor_long_ride: boolean | null
+          strength_sessions_per_week: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          available_days?: Json | null
+          constraints_notes?: string | null
+          created_at?: string | null
+          event_date?: string | null
+          event_demand_profile?: string | null
+          event_name?: string | null
+          goal_type?: string | null
+          hours_per_week?: number | null
+          id?: string
+          prefer_indoor_intervals?: boolean | null
+          prefer_outdoor_long_ride?: boolean | null
+          strength_sessions_per_week?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          available_days?: Json | null
+          constraints_notes?: string | null
+          created_at?: string | null
+          event_date?: string | null
+          event_demand_profile?: string | null
+          event_name?: string | null
+          goal_type?: string | null
+          hours_per_week?: number | null
+          id?: string
+          prefer_indoor_intervals?: boolean | null
+          prefer_outdoor_long_ride?: boolean | null
+          strength_sessions_per_week?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       athlete_profiles: {
         Row: {
           created_at: string | null
