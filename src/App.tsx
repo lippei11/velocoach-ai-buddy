@@ -11,6 +11,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import TrainingPlan from "./pages/TrainingPlan";
+import Activities from "./pages/Activities";
 import Chat from "./pages/Chat";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
