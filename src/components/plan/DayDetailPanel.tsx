@@ -1,29 +1,23 @@
 import { DayData } from "@/types/trainingPlan";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { formatDuration } from "@/lib/planUtils";
+import { WORKOUT_LABELS, formatDuration } from "@/lib/planUtils";
 import { format, parseISO } from "date-fns";
-import { Pencil, Save, Upload, X } from "lucide-react";
+import { Pencil, Save, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
-  day: DayData | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  day: DayData;
 }
 
-export function DayDetailPanel({ day, open, onOpenChange }: Props) {
-  const isMobile = useIsMobile();
+export function DayDetailPanel({ day }: Props) {
   const [editing, setEditing] = useState(false);
   const [desc, setDesc] = useState("");
 
   const startEdit = () => {
-    setDesc(day?.planned?.description || "");
+    setDesc(day.planned?.description || "");
     setEditing(true);
   };
 
@@ -38,37 +32,57 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
     });
   };
 
-  const content = day ? (
-    <div className="space-y-4 p-1">
-      <div className="flex items-center justify-between">
+  return (
+    <div className="space-y-4">
+      <div>
         <p className="text-sm text-muted-foreground">{format(parseISO(day.date), "EEEE, MMM d yyyy")}</p>
       </div>
 
       {day.planned ? (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold">{day.planned.name}</h3>
-            <Badge style={{ backgroundColor: day.planned.color + "33", color: day.planned.color }}>
-              {day.planned.workoutType}
-            </Badge>
+          {/* Name + Type badge */}
+          <div>
+            <h3 className="font-semibold text-base">{day.planned.name}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge
+                className="text-[10px]"
+                style={{ backgroundColor: day.planned.color + "33", color: day.planned.color }}
+              >
+                {WORKOUT_LABELS[day.planned.workoutType] || day.planned.workoutType}
+              </Badge>
+              {day.planned.category && (
+                <Badge variant="outline" className="text-[10px]">
+                  {day.planned.category}
+                </Badge>
+              )}
+            </div>
           </div>
 
+          {/* Key metrics */}
           <div className="grid grid-cols-2 gap-2 text-sm">
             {day.planned.duration != null && day.planned.duration > 0 && (
-              <div>
-                <span className="text-muted-foreground">Duration: </span>
-                <span className="font-medium">{formatDuration(day.planned.duration)}</span>
+              <div className="rounded-md bg-accent p-2">
+                <span className="text-[10px] text-muted-foreground block">Duration</span>
+                <span className="font-medium text-sm">{formatDuration(day.planned.duration)}</span>
               </div>
             )}
             {day.planned.tssTarget != null && (
-              <div>
-                <span className="text-muted-foreground">TSS Target: </span>
-                <span className="font-medium">{day.planned.tssTarget}</span>
+              <div className="rounded-md bg-accent p-2">
+                <span className="text-[10px] text-muted-foreground block">TSS Target</span>
+                <span className="font-medium text-sm">{day.planned.tssTarget}</span>
               </div>
             )}
           </div>
 
-          {/* Description */}
+          {/* Stress type info */}
+          <div className="rounded-md bg-accent p-2 text-xs">
+            <span className="text-muted-foreground">Stress Type: </span>
+            <span className="font-medium" style={{ color: day.planned.color }}>
+              {WORKOUT_LABELS[day.planned.workoutType] || day.planned.workoutType}
+            </span>
+          </div>
+
+          {/* Description / Intervals.icu text */}
           {editing ? (
             <div className="space-y-2">
               <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={8} className="font-mono text-xs" />
@@ -82,9 +96,12 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
           ) : (
             <div>
               {day.planned.description && (
-                <pre className="text-xs whitespace-pre-wrap rounded-lg bg-accent p-3 font-mono text-foreground">
-                  {day.planned.description}
-                </pre>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Workout Description</p>
+                  <pre className="text-xs whitespace-pre-wrap rounded-lg bg-accent p-3 font-mono text-foreground">
+                    {day.planned.description}
+                  </pre>
+                </div>
               )}
               <Button variant="ghost" size="sm" className="mt-2" onClick={startEdit}>
                 <Pencil className="h-3 w-3 mr-1" /> Edit Workout
@@ -137,16 +154,16 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
           <h3 className="font-semibold">{day.completed.name}</h3>
           <Badge variant="secondary">{day.completed.type}</Badge>
           <div className="grid grid-cols-3 gap-2 text-sm">
-            <div>
-              <p className="text-muted-foreground text-xs">Duration</p>
+            <div className="rounded-md bg-accent p-2">
+              <p className="text-muted-foreground text-[10px]">Duration</p>
               <p className="font-medium">{formatDuration(day.completed.movingTime)}</p>
             </div>
-            <div>
-              <p className="text-muted-foreground text-xs">TSS</p>
+            <div className="rounded-md bg-accent p-2">
+              <p className="text-muted-foreground text-[10px]">TSS</p>
               <p className="font-medium">{day.completed.tss ?? "–"}</p>
             </div>
-            <div>
-              <p className="text-muted-foreground text-xs">Avg Power</p>
+            <div className="rounded-md bg-accent p-2">
+              <p className="text-muted-foreground text-[10px]">Avg Power</p>
               <p className="font-medium">{day.completed.avgPower ? `${day.completed.avgPower}W` : "–"}</p>
             </div>
           </div>
@@ -155,29 +172,5 @@ export function DayDetailPanel({ day, open, onOpenChange }: Props) {
         <p className="text-sm text-muted-foreground">Rest day — no workout planned.</p>
       )}
     </div>
-  ) : null;
-
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Day Detail</DrawerTitle>
-          </DrawerHeader>
-          <div className="px-4 pb-6">{content}</div>
-        </DrawerContent>
-      </Drawer>
-    );
-  }
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[380px] sm:max-w-[380px] overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>Day Detail</SheetTitle>
-        </SheetHeader>
-        {content}
-      </SheetContent>
-    </Sheet>
   );
 }

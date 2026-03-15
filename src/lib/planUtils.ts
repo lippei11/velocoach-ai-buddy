@@ -32,13 +32,31 @@ export const WORKOUT_COLORS: Record<WorkoutType, string> = {
   longride: "#8B5CF6",
   recovery: "#22C55E",
   rest: "transparent",
+  threshold: "#EAB308",
+  durability: "#06B6D4",
+  strength: "#D946EF",
+};
+
+export const WORKOUT_LABELS: Record<WorkoutType, string> = {
+  endurance: "Endurance",
+  sweetspot: "Sweet Spot",
+  vo2max: "VO2max",
+  longride: "Long Ride",
+  recovery: "Recovery",
+  rest: "Rest",
+  threshold: "Threshold",
+  durability: "Durability",
+  strength: "Strength",
 };
 
 export function classifyWorkout(name: string, category?: string): WorkoutType {
   const lower = (name + " " + (category || "")).toLowerCase();
   if (lower.includes("recovery") || lower.includes("easy")) return "recovery";
-  if (lower.includes("vo2") || lower.includes("interval") || lower.includes("hiit")) return "vo2max";
-  if (lower.includes("sweet spot") || lower.includes("threshold") || lower.includes("tempo")) return "sweetspot";
+  if (lower.includes("vo2") || lower.includes("hiit")) return "vo2max";
+  if (lower.includes("threshold")) return "threshold";
+  if (lower.includes("sweet spot") || lower.includes("tempo")) return "sweetspot";
+  if (lower.includes("durability") || lower.includes("fatigue resistance")) return "durability";
+  if (lower.includes("strength") || lower.includes("gym") || lower.includes("core")) return "strength";
   if (lower.includes("long") || lower.includes("endurance ride")) return "longride";
   return "endurance";
 }
