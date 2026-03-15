@@ -345,7 +345,9 @@ export default function Dashboard() {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">Letzte Aktivitäten</CardTitle>
-            <span className="text-xs text-muted-foreground">{activities.length} gesamt</span>
+            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-primary" onClick={() => navigate("/activities")}>
+              Alle anzeigen →
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
