@@ -356,8 +356,8 @@ export default function ActivityDetail() {
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <Activity className="h-12 w-12 text-muted-foreground" />
         <p className="text-muted-foreground">Activity not found.</p>
-        <Button variant="outline" onClick={() => navigate("/dashboard")}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+        <Button variant="outline" onClick={() => navigate("/activities")}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Alle Aktivitäten
         </Button>
       </div>
     );
