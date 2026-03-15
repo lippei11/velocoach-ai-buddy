@@ -11,6 +11,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import TrainingPlan from "./pages/TrainingPlan";
+import Activities from "./pages/Activities";
 import Chat from "./pages/Chat";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -61,9 +62,10 @@ const AppRoutes = () => {
       >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/plan" element={<TrainingPlan />} />
+        <Route path="/activities" element={<Activities />} />
+        <Route path="/activities/:id" element={<ActivityDetail />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/activities/:id" element={<ActivityDetail />} />
       </Route>
       <Route path="/" element={<Navigate to={session ? "/dashboard" : "/auth"} replace />} />
       <Route path="*" element={<NotFound />} />

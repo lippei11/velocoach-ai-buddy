@@ -1,4 +1,4 @@
-import { Bike, LayoutDashboard, Calendar, MessageSquare, Settings, ChevronLeft, LogOut } from "lucide-react";
+import { Bike, LayoutDashboard, Calendar, Activity, MessageSquare, Settings, ChevronLeft, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,8 +17,9 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Training Plan", url: "/plan", icon: Calendar },
-  { title: "AI Coach", url: "/chat", icon: MessageSquare },
+  { title: "Plan", url: "/plan", icon: Calendar },
+  { title: "Activities", url: "/activities", icon: Activity },
+  { title: "Chat", url: "/chat", icon: MessageSquare },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
