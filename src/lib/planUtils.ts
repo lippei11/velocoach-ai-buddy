@@ -32,6 +32,21 @@ export const WORKOUT_COLORS: Record<WorkoutType, string> = {
   longride: "#8B5CF6",
   recovery: "#22C55E",
   rest: "transparent",
+  threshold: "#EAB308",
+  durability: "#06B6D4",
+  strength: "#D946EF",
+};
+
+export const WORKOUT_LABELS: Record<WorkoutType, string> = {
+  endurance: "Endurance",
+  sweetspot: "Sweet Spot",
+  vo2max: "VO2max",
+  longride: "Long Ride",
+  recovery: "Recovery",
+  rest: "Rest",
+  threshold: "Threshold",
+  durability: "Durability",
+  strength: "Strength",
 };
 
 export function classifyWorkout(name: string, category?: string): WorkoutType {
