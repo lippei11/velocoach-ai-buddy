@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Plus, Send, MoreVertical, Trash2, Pencil, Menu, RefreshCw, X } from "lucide-react";
+import { MessageSquare, Plus, Send, MoreVertical, Trash2, Pencil, Menu, RefreshCw, X, ArrowRightLeft, Lightbulb, Clock, Minus, PlusCircle, Replace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +36,13 @@ const SUGGESTION_CHIPS = [
   "I'm tired today — should I do the planned hard session?",
 ];
 
+const ADJUSTMENT_ACTIONS = [
+  { label: "Move workout", icon: ArrowRightLeft, description: "Reschedule a session to another day" },
+  { label: "Reduce duration", icon: Minus, description: "Shorten a planned workout" },
+  { label: "Insert recovery day", icon: PlusCircle, description: "Add a rest day to the plan" },
+  { label: "Replace session", icon: Replace, description: "Swap a workout for an alternative" },
+];
+
 export default function Chat() {
   const isMobile = useIsMobile();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -54,12 +62,10 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Load conversations
   useEffect(() => {
     loadConversations();
   }, []);
 
-  // Load messages when conversation changes
   useEffect(() => {
     if (activeConvId) {
       loadMessages(activeConvId);
@@ -134,7 +140,6 @@ export default function Chat() {
     if (!msg || isStreaming) return;
     setInput("");
 
-    // Optimistic user message
     const tempUserMsg: Message = {
       id: `temp-${Date.now()}`,
       role: "user",
@@ -182,7 +187,6 @@ export default function Chat() {
       let assistantContent = "";
       let newConvId = activeConvId;
 
-      // Create placeholder assistant message
       const assistantMsgId = `assistant-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
@@ -222,9 +226,7 @@ export default function Chat() {
         }
       }
 
-      // Reload conversations to get the new one
       loadConversations();
-      // Reload messages to get real IDs
       if (newConvId) {
         setTimeout(() => loadMessages(newConvId!), 500);
       }
@@ -236,7 +238,6 @@ export default function Chat() {
           onClick: () => sendMessage(msg),
         },
       });
-      // Remove optimistic messages on error
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
     } finally {
       setIsStreaming(false);
@@ -250,12 +251,16 @@ export default function Chat() {
     }
   }
 
+  function handleAdjustmentAction(label: string) {
+    sendMessage(`I'd like to ${label.toLowerCase()} in my current training plan.`);
+  }
+
   const activeConv = conversations.find((c) => c.id === activeConvId);
   const showSuggestions = messages.length === 0 && !loadingMsgs;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden -m-6">
-      {/* Sidebar */}
+      {/* Conversation Sidebar */}
       {(sidebarOpen || !isMobile) && (
         <div
           className={`${
@@ -329,164 +334,257 @@ export default function Chat() {
         </div>
       )}
 
-      {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-          <div className="flex items-center gap-2">
-            {isMobile && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(true)}>
-                <Menu className="h-4 w-4" />
-              </Button>
-            )}
-            <span className="text-lg">🚴</span>
-            <h1 className="text-sm font-semibold truncate">
-              {activeConv?.title ?? "VeloCoach AI"}
-            </h1>
-          </div>
-          {activeConvId && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
+      {/* Main area: Chat + Right Panel */}
+      <div className="flex-1 flex min-w-0">
+        {/* Chat column */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+            <div className="flex items-center gap-2">
+              {isMobile && (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(true)}>
+                  <Menu className="h-4 w-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => {
-                    setEditingTitle(activeConvId);
-                    setEditTitleValue(activeConv?.title ?? "");
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" /> Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => deleteConversation(activeConvId)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-
-        {/* Messages */}
-        <ScrollArea className="flex-1 px-4 py-4">
-          {loadingMsgs ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
-                  <Skeleton className="h-16 w-3/5 rounded-xl" />
-                </div>
-              ))}
-            </div>
-          ) : showSuggestions ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-6">
-              <div className="text-center">
-                <span className="text-4xl mb-3 block">🚴</span>
-                <h2 className="text-lg font-semibold text-foreground">VeloCoach AI</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Your personal cycling coach, powered by your training data
+              )}
+              <span className="text-lg">🚴</span>
+              <div>
+                <h1 className="text-sm font-semibold truncate">
+                  {activeConv?.title ?? "Chat"}
+                </h1>
+                <p className="text-[11px] text-muted-foreground">
+                  Questions, adjustments & coaching context
                 </p>
               </div>
-              <div className="flex flex-col gap-2 w-full max-w-md">
-                {SUGGESTION_CHIPS.map((chip) => (
-                  <button
-                    key={chip}
-                    onClick={() => sendMessage(chip)}
-                    className="text-left px-4 py-3 rounded-lg border border-border bg-card hover:bg-accent transition-colors text-sm text-foreground"
+            </div>
+            {activeConvId && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditingTitle(activeConvId);
+                      setEditTitleValue(activeConv?.title ?? "");
+                    }}
                   >
-                    {chip}
-                  </button>
+                    <Pencil className="h-4 w-4 mr-2" /> Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => deleteConversation(activeConvId)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+
+          {/* Messages */}
+          <ScrollArea className="flex-1 px-4 py-4">
+            {loadingMsgs ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
+                    <Skeleton className="h-16 w-3/5 rounded-xl" />
+                  </div>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="space-y-4 max-w-3xl mx-auto">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div className="flex gap-2 max-w-[70%]">
-                    {msg.role === "assistant" && (
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent flex items-center justify-center text-sm mt-1">
+            ) : showSuggestions ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-6">
+                <div className="text-center">
+                  <span className="text-4xl mb-3 block">🚴</span>
+                  <h2 className="text-lg font-semibold text-foreground">Chat</h2>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                    Ask questions about your training, request plan adjustments, or get context on coaching decisions.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 w-full max-w-md">
+                  {SUGGESTION_CHIPS.map((chip) => (
+                    <button
+                      key={chip}
+                      onClick={() => sendMessage(chip)}
+                      className="text-left px-4 py-3 rounded-lg border border-border bg-card hover:bg-accent transition-colors text-sm text-foreground"
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 max-w-3xl mx-auto">
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div className="flex gap-2 max-w-[80%]">
+                      {msg.role === "assistant" && (
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent flex items-center justify-center text-sm mt-1">
+                          🚴
+                        </div>
+                      )}
+                      <div>
+                        <div
+                          className={`rounded-2xl px-4 py-2.5 text-sm ${
+                            msg.role === "user"
+                              ? "bg-primary text-primary-foreground rounded-br-md"
+                              : "bg-accent text-accent-foreground rounded-bl-md"
+                          }`}
+                        >
+                          {msg.role === "assistant" ? (
+                            <div className="prose prose-sm prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
+                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1 px-1">
+                          {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
+                  <div className="flex justify-start">
+                    <div className="flex gap-2">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent flex items-center justify-center text-sm">
                         🚴
                       </div>
-                    )}
-                    <div>
-                      <div
-                        className={`rounded-2xl px-4 py-2.5 text-sm ${
-                          msg.role === "user"
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : "bg-accent text-accent-foreground rounded-bl-md"
-                        }`}
-                      >
-                        {msg.role === "assistant" ? (
-                          <div className="prose prose-sm prose-invert max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
-                          </div>
-                        ) : (
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                        )}
+                      <div className="rounded-2xl rounded-bl-md bg-accent px-4 py-3 flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1 px-1">
-                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                      </p>
                     </div>
                   </div>
-                </div>
-              ))}
+                )}
 
-              {/* Typing indicator */}
-              {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-                <div className="flex justify-start">
-                  <div className="flex gap-2">
-                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent flex items-center justify-center text-sm">
-                      🚴
-                    </div>
-                    <div className="rounded-2xl rounded-bl-md bg-accent px-4 py-3 flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </ScrollArea>
 
-              <div ref={messagesEndRef} />
+          {/* Input */}
+          <div className="border-t border-border bg-card p-4">
+            <div className="max-w-3xl mx-auto flex gap-2 items-end">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask a question or request an adjustment..."
+                disabled={isStreaming}
+                className="resize-none min-h-[44px] max-h-[120px] bg-background border-border"
+                rows={1}
+              />
+              <Button
+                size="icon"
+                onClick={() => sendMessage()}
+                disabled={!input.trim() || isStreaming}
+                className="h-11 w-11 shrink-0"
+              >
+                {isStreaming ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-          )}
-        </ScrollArea>
-
-        {/* Input */}
-        <div className="border-t border-border bg-card p-4">
-          <div className="max-w-3xl mx-auto flex gap-2 items-end">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask your coach..."
-              disabled={isStreaming}
-              className="resize-none min-h-[44px] max-h-[120px] bg-background border-border"
-              rows={1}
-            />
-            <Button
-              size="icon"
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || isStreaming}
-              className="h-11 w-11 shrink-0"
-            >
-              {isStreaming ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
           </div>
         </div>
+
+        {/* Right Panel: Adjustments + Rationale (hidden on mobile) */}
+        {!isMobile && (
+          <div className="w-[300px] min-w-[300px] border-l border-border bg-background flex flex-col overflow-hidden">
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-4">
+                {/* Plan Adjustments */}
+                <Card className="border-border">
+                  <CardHeader className="pb-3 pt-4 px-4">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                      Plan Adjustments
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0">
+                    <div className="space-y-1.5">
+                      {ADJUSTMENT_ACTIONS.map((action) => (
+                        <button
+                          key={action.label}
+                          onClick={() => handleAdjustmentAction(action.label)}
+                          disabled={isStreaming}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-left text-sm transition-colors hover:bg-accent disabled:opacity-50 disabled:pointer-events-none group"
+                        >
+                          <action.icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-foreground text-sm font-medium">{action.label}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">{action.description}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Coach Rationale */}
+                <Card className="border-border">
+                  <CardHeader className="pb-3 pt-4 px-4">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Lightbulb className="h-3.5 w-3.5" />
+                      Coach Rationale
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0">
+                    <div className="space-y-3">
+                      <RationaleItem
+                        label="WHAT"
+                        value="No recent adjustments"
+                        muted
+                      />
+                      <RationaleItem
+                        label="WHY"
+                        value="—"
+                        muted
+                      />
+                      <RationaleItem
+                        label="EFFECT"
+                        value="—"
+                        muted
+                      />
+                      <RationaleItem
+                        label="NEXT"
+                        value="—"
+                        muted
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-3 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Updates after plan adjustments
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RationaleItem({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-primary">{label}</div>
+      <div className={`text-sm mt-0.5 ${muted ? "text-muted-foreground italic" : "text-foreground"}`}>
+        {value}
       </div>
     </div>
   );
