@@ -29,5 +29,132 @@
     "ultra_endurance": "POLARIZED",
     "ftp_build": "SS_THRESHOLD",
     "mixed_hobby_fitness": "PYRAMIDAL"
+  },
+  "workout_types": {
+    "recovery": {
+      "stressType": "recovery",
+      "zone": "Z1",
+      "ftpPctRange": [0, 55],
+      "sessionVolumeClass": "small",
+      "cadenceRequired": false,
+      "indoorOutdoorDefault": "flexible",
+      "rpeRange": [1, 2],
+      "inAppDefinition": "Sehr lockeres Fahren. Ziel ist Durchblutung, nicht Training. Wer schwitzt, fährt zu hart.",
+      "typicalFormats": ["free riding, no targets"],
+      "notes": null
+    },
+    "endurance": {
+      "stressType": "endurance_base",
+      "zone": "Z2",
+      "ftpPctRange": [56, 75],
+      "sessionVolumeClass": "medium",
+      "cadenceRequired": false,
+      "indoorOutdoorDefault": "outdoor_preferred",
+      "rpeRange": [3, 4],
+      "inAppDefinition": "Steady aerobic ride. Sustainable for hours. Builds your aerobic engine. Shorter than a long ride, same zone.",
+      "typicalFormats": ["steady Z2, no structure required"],
+      "notes": null
+    },
+    "long_ride": {
+      "stressType": "durability",
+      "zone": "Z1-Z2",
+      "ftpPctRange": [56, 75],
+      "sessionVolumeClass": "anchor",
+      "cadenceRequired": false,
+      "indoorOutdoorDefault": "outdoor_preferred",
+      "rpeRange": [3, 5],
+      "inAppDefinition": "The anchor of your week. Duration is the stimulus — not zone. Trains fat metabolism and your ability to perform when tired. Cannot be replaced by shorter hard sessions.",
+      "typicalFormats": ["steady Z2, final hour at Z2+"],
+      "fuelingNote": "Practice 60–90g carbohydrate/hour on long rides.",
+      "notes": "This is typically the anchor session of the week."
+    },
+    "sweet_spot": {
+      "stressType": "threshold",
+      "zone": "SS",
+      "ftpPctRange": [88, 93],
+      "sessionVolumeClass": "medium",
+      "cadenceRequired": false,
+      "indoorOutdoorDefault": "indoor_preferred",
+      "rpeRange": [6, 7],
+      "inAppDefinition": "Comfortably hard. Raises your FTP efficiently. Typical: 2×20 min or 3×15 min blocks with short recovery.",
+      "typicalFormats": ["2×20 min", "3×15 min", "3×10 min", "1×40 min (advanced)"],
+      "recoveryBetweenBlocksMin": 5,
+      "notes": null
+    },
+    "threshold": {
+      "stressType": "threshold",
+      "zone": "Z4",
+      "ftpPctRange": [94, 105],
+      "sessionVolumeClass": "medium",
+      "cadenceRequired": false,
+      "indoorOutdoorDefault": "indoor_preferred",
+      "rpeRange": [7, 8],
+      "inAppDefinition": "Riding at your limit for sustained efforts. Directly raises FTP. Typical: 1×30 min or 2×20 min at 94–105% FTP.",
+      "typicalFormats": ["1×30 min", "2×20 min"],
+      "pacingNote": "Start conservative — last 5 min should feel like maximum sustainable effort.",
+      "notes": null
+    },
+    "vo2max": {
+      "stressType": "vo2max",
+      "zone": "Z5",
+      "ftpPctRange": [106, 120],
+      "sessionVolumeClass": "medium",
+      "cadenceRequired": true,
+      "indoorOutdoorDefault": "indoor_preferred",
+      "rpeRange": [9, 10],
+      "inAppDefinition": "Short, very hard intervals. Raises your maximal aerobic power. Typical: 4–6 × 4–5 min at 110–120% FTP. Needs full recovery between efforts.",
+      "typicalFormats": ["4×4 min", "5×4 min", "6×3 min", "4×5 min"],
+      "recoveryBetweenBlocksMin": 4,
+      "notes": null
+    },
+    "climb_simulation": {
+      "stressType": "threshold",
+      "zone": "Z2-Z4",
+      "ftpPctRange": [76, 105],
+      "sessionVolumeClass": "large",
+      "cadenceRequired": true,
+      "indoorOutdoorDefault": "flexible",
+      "rpeRange": [6, 8],
+      "inAppDefinition": "Sustained effort at lower cadence (72–78 RPM), high torque. Specific prep for mountain events. Best done on actual climbs or steep indoor gradient.",
+      "typicalFormats": ["sustained Z3–Z4 blocks at low cadence"],
+      "notes": "Erg OFF. Torque and seated position are the training stimulus, not absolute power."
+    },
+    "back_to_back": {
+      "stressType": "durability",
+      "zone": "Z2",
+      "ftpPctRange": [56, 75],
+      "sessionVolumeClass": "large",
+      "cadenceRequired": false,
+      "indoorOutdoorDefault": "outdoor_preferred",
+      "rpeRange": [3, 5],
+      "inAppDefinition": "Day 2 of a consecutive block. Pre-fatigued legs. Trains ability to perform when already tired — critical for events over 5 hours.",
+      "typicalFormats": ["steady Z2 on pre-fatigued legs"],
+      "contextualNote": "This is a contextual session type — only scheduled as Day 2 following a long_ride. Not a generic standalone session type.",
+      "notes": "Fatigue from Day 1 is the point."
+    },
+    "sprint": {
+      "stressType": "neuromuscular",
+      "zone": "Z6+",
+      "ftpPctRange": null,
+      "sessionVolumeClass": "small",
+      "cadenceRequired": true,
+      "indoorOutdoorDefault": "flexible",
+      "rpeRange": [10, 10],
+      "inAppDefinition": "Maximal 10–30 sec sprints. Peak power and fast-twitch recruitment. Crit / punchy goal only.",
+      "typicalFormats": ["6–10 × 10–30 sec all-out, 3–5 min full recovery"],
+      "profileRestriction": "punchy_stochastic",
+      "notes": "ftpPctRange is null — effort is maximal, not FTP-relative."
+    }
+  },
+  "cadence_recommendations": {
+    "recovery":           { "rpmRange": [88, 100], "indoorTarget": [90, 95],   "outdoorTarget": null,      "mandatory": false },
+    "endurance":          { "rpmRange": [83, 95],  "indoorTarget": [88, 92],   "outdoorTarget": [85, 92],  "mandatory": false },
+    "long_ride_flat":     { "rpmRange": [83, 95],  "indoorTarget": [88, 92],   "outdoorTarget": [85, 92],  "mandatory": false },
+    "long_ride_climbing": { "rpmRange": [68, 85],  "indoorTarget": [72, 80],   "outdoorTarget": null,      "mandatory": false, "note": "Gradient-dependent. Standing: free." },
+    "sweet_spot":         { "rpmRange": [83, 95],  "indoorTarget": [88, 93],   "outdoorTarget": [86, 92],  "mandatory": false },
+    "threshold":          { "rpmRange": [85, 95],  "indoorTarget": [90, 95],   "outdoorTarget": [88, 95],  "mandatory": false },
+    "vo2max":             { "rpmRange": [95, 110], "indoorTarget": [100, 106], "outdoorTarget": [95, 108], "mandatory": true,  "rationale": "Fast-twitch recruitment. Purpose-specific." },
+    "climb_simulation":   { "rpmRange": [68, 82],  "indoorTarget": [72, 78],   "outdoorTarget": null,      "mandatory": true,  "rationale": "High torque at lower cadence is the training stimulus." },
+    "sprint":             { "rpmRange": [110, 130],"indoorTarget": [115, 125], "outdoorTarget": null,      "mandatory": true,  "rationale": "Fast-twitch recruitment is the explicit goal." }
   }
 }
