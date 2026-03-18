@@ -11,6 +11,20 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
+// In the Lovable preview iframe, window.location.origin is "http://localhost:3000"
+// which breaks email redirect links. Use the public site URL instead.
+function getSiteUrl(): string {
+  const origin = window.location.origin;
+  if (origin.includes("localhost")) {
+    // Derive public URL from Supabase project ID
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    if (projectId) {
+      return `https://id-preview--${projectId}.lovableproject.com`;
+    }
+  }
+  return origin;
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
@@ -38,7 +52,7 @@ export default function Auth() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: getSiteUrl() },
     });
     setLoading(false);
     if (error) {
@@ -55,7 +69,7 @@ export default function Auth() {
     }
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${getSiteUrl()}/reset-password`,
     });
     setLoading(false);
     if (error) {
