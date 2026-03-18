@@ -14,7 +14,7 @@ Kein Agent darf Felder aus einer anderen als der hier definierten Tabelle lesen 
 |---------------------|-----------------------------------------------|-------------------------|
 |`athlete_connections`|Technische Integrationen / Verbindungszustand  |✅ Existiert              |
 |`athlete_profiles`   |Importierte Athletenmetriken aus Intervals.icu |✅ Existiert              |
-|`athlete_preferences`|Dauerhaftes Coaching Setup / User-Konfiguration|⚠️ Migration 2b ausstehend|
+|`athlete_preferences`|Dauerhaftes Coaching Setup / User-Konfiguration|✅ Existiert              |
 |`wellness_days`      |Trainingslastwerte (CTL, ATL, TSB, HRV)        |✅ Existiert              |
 |`activities`         |Abgeschlossene Einheiten                       |✅ Existiert              |
 |`plans`              |Plansnapshot zum Generierungszeitpunkt         |✅ Existiert              |
