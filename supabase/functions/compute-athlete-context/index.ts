@@ -217,7 +217,6 @@ Deno.serve(async (req) => {
       }
       if (prefs.prefer_outdoor_long_ride != null) preferOutdoorLongRide = prefs.prefer_outdoor_long_ride;
       if (prefs.prefer_indoor_intervals != null) preferIndoorIntervals = prefs.prefer_indoor_intervals;
-      if (prefs.training_time_of_day) trainingTimeOfDay = prefs.training_time_of_day;
       if (prefs.strength_sessions_per_week != null) strengthSessionsPerWeek = prefs.strength_sessions_per_week;
     } else {
       // Transitional fallback: read from most recent plan
