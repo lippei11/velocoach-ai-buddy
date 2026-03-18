@@ -215,13 +215,16 @@ Deno.serve(async (req) => {
       // 1) Sync athlete profile
       try {
         const profile = await fetchIntervalsApi(athleteId, apiKey, "");
+        const sport = Array.isArray(profile.sport_settings)
+          ? profile.sport_settings[0]
+          : null;
         await supabaseAdmin.from("athlete_profiles").upsert({
           user_id: userId,
           intervals_athlete_id: athleteId,
           name: profile.name ?? null,
           email: profile.email ?? null,
-          ftp: profile.icu_ftp ?? null,
-          max_hr: profile.icu_max_hr ?? null,
+          ftp: sport?.ftp ?? null,
+          max_hr: sport?.max_hr ?? null,
           resting_hr: profile.icu_resting_hr ?? null,
           weight: profile.icu_weight ?? null,
           sport_types: profile.sport_settings ?? [],
