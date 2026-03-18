@@ -1,9 +1,11 @@
-import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings, Clock, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings, Clock, TrendingUp, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, ReferenceLine
@@ -12,6 +14,7 @@ import { useIntervalsData } from "@/hooks/useIntervalsData";
 import { useNavigate } from "react-router-dom";
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
 function Sparkline({ data, color }: { data: { v: number }[]; color: string }) {
   if (data.length < 2) return null;
@@ -80,6 +83,36 @@ export default function Dashboard() {
     lastSyncAt, athleteName, refresh, syncAndReload,
   } = useIntervalsData();
   const navigate = useNavigate();
+  const [contextModalOpen, setContextModalOpen] = useState(false);
+  const [contextJson, setContextJson] = useState<string | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
+
+  async function handleTestContext() {
+    setContextLoading(true);
+    setContextJson(null);
+    setContextModalOpen(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/compute-athlete-context`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+      const json = await res.json();
+      setContextJson(JSON.stringify(json, null, 2));
+    } catch (e: any) {
+      setContextJson(`Error: ${e.message}`);
+    } finally {
+      setContextLoading(false);
+    }
+  }
 
   // --- Not Connected ---
   if (state === "not-connected") {
@@ -185,10 +218,16 @@ export default function Dashboard() {
             <SyncStatusBadge lastSyncAt={lastSyncAt} />
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Aktualisieren
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleTestContext} disabled={contextLoading}>
+            <Bug className="h-4 w-4 mr-1" />
+            Test Context
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Aktualisieren
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -410,6 +449,26 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Debug: Test Context Modal */}
+      <Dialog open={contextModalOpen} onOpenChange={setContextModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-mono">compute-athlete-context Response</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {contextLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <pre className="text-xs font-mono bg-muted p-4 rounded-md whitespace-pre-wrap break-all">
+                {contextJson ?? "No data"}
+              </pre>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
