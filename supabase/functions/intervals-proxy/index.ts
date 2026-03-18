@@ -215,9 +215,8 @@ Deno.serve(async (req) => {
       // 1) Sync athlete profile
       try {
         const profile = await fetchIntervalsApi(athleteId, apiKey, "");
-        const sport = Array.isArray(profile.sport_settings)
-          ? profile.sport_settings[0]
-          : null;
+        const sportSettings = profile.sportSettings ?? profile.sport_settings;
+        const sport = Array.isArray(sportSettings) ? sportSettings[0] : null;
         await supabaseAdmin.from("athlete_profiles").upsert({
           user_id: userId,
           intervals_athlete_id: athleteId,
