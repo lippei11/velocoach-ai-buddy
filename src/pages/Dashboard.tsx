@@ -454,7 +454,21 @@ export default function Dashboard() {
       <Dialog open={contextModalOpen} onOpenChange={setContextModalOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-sm font-mono">compute-athlete-context Response</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-sm font-mono">compute-athlete-context Response</DialogTitle>
+              {contextJson && !contextLoading && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(contextJson);
+                    import("sonner").then(({ toast }) => toast.success("JSON kopiert"));
+                  }}
+                >
+                  Kopieren
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           <div className="flex-1 overflow-auto">
             {contextLoading ? (
