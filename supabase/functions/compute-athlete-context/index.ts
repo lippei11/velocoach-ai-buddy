@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
       .from("athlete_preferences")
       .select(
         "event_demand_profile, event_date, hours_per_week, available_days, " +
-        "prefer_outdoor_long_ride, prefer_indoor_intervals, training_time_of_day, " +
+        "prefer_outdoor_long_ride, prefer_indoor_intervals, " +
         "strength_sessions_per_week"
       )
       .eq("user_id", userId)
