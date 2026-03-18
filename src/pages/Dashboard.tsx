@@ -449,6 +449,26 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Debug: Test Context Modal */}
+      <Dialog open={contextModalOpen} onOpenChange={setContextModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-mono">compute-athlete-context Response</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {contextLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <pre className="text-xs font-mono bg-muted p-4 rounded-md whitespace-pre-wrap break-all">
+                {contextJson ?? "No data"}
+              </pre>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
