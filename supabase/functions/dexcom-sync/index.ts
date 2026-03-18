@@ -1,3 +1,4 @@
+// @ts-nocheck — Deno edge function; types resolved at Deno runtime
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.98.0";
 
 const DEXCOM_BASE = "https://shareous1.dexcom.com/ShareWebServices/Services";
