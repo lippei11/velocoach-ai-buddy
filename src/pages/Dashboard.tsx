@@ -106,6 +106,7 @@ export default function Dashboard() {
         }
       );
       const json = await res.json();
+      console.log("compute-athlete-context response:", json);
       setContextJson(JSON.stringify(json, null, 2));
     } catch (e: any) {
       setContextJson(`Error: ${e.message}`);
