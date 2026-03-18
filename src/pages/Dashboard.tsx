@@ -218,10 +218,16 @@ export default function Dashboard() {
             <SyncStatusBadge lastSyncAt={lastSyncAt} />
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Aktualisieren
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleTestContext} disabled={contextLoading}>
+            <Bug className="h-4 w-4 mr-1" />
+            Test Context
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Aktualisieren
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
