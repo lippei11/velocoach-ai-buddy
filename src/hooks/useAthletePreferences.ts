@@ -57,6 +57,7 @@ export function useAthletePreferences() {
         strength_sessions_per_week: d.strength_sessions_per_week ?? DEFAULTS.strength_sessions_per_week,
         constraints_notes: d.constraints_notes ?? "",
       });
+      setUpdatedAt(d.updated_at ?? null);
     }
     setLoading(false);
   }, []);
