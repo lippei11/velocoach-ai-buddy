@@ -174,8 +174,8 @@ async function callPlanningLLM(
   systemPrompt: string,
   userPrompt: string
 ): Promise<string> {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY2");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY2 not configured");
 
   const res = await fetch(ANTHROPIC_API, {
     method: "POST",
@@ -334,6 +334,10 @@ Deno.serve(async (req) => {
   return jsonResponse({
     weekSkeleton: skeleton,
     validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
+    debug: {
+      planningMode: "llm",
+      planningImplementation: "weekly-planning-agent-v1",
+    },
     weekContext: {
       phase: weekCtx.phase.phase,
       weekNumberInPlan: weekCtx.weekNumberInPlan,
