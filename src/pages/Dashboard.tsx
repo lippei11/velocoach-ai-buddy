@@ -191,7 +191,7 @@ export default function Dashboard() {
 
   const barData = weeklyTSS.map((w) => ({
     ...w,
-    fill: ctl != null && w.tss > ctl * 7 ? "#3B82F6" : "hsl(var(--muted-foreground) / 0.4)",
+    fill: "hsl(var(--primary))",
   }));
 
   const last10 = activities.slice(0, 10);
