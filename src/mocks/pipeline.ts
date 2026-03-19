@@ -66,6 +66,7 @@ export const MOCK_PIPELINE_RESPONSE: PipelineResponse = {
       maxVo2Sessions: 0,
       maxNeuromuscularSessions: 0,
       maxDurabilityBlocks: 1,
+      maxStrengthSessions: 0,
       plannedThreshold: 1,
       plannedVo2: 0,
       plannedNeuromuscular: 0,
