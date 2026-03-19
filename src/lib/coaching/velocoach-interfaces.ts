@@ -278,6 +278,7 @@ export interface WeeklyStressBudget {
   plannedLongRide: boolean;
   exceptionApplied: boolean;        // true if 3rd hard session allowed
   exceptionReason?: string;
+  typology?: string;                // e.g. "PYRAMIDAL", "POLARIZED", "SS_THRESHOLD"
 }
 
 export interface WorkoutIntervalBlock {
