@@ -230,9 +230,13 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleTestContext} disabled={contextLoading}>
+          <Button variant="outline" size="sm" onClick={handleTestContext} disabled={debugLoading}>
             <Bug className="h-4 w-4 mr-1" />
             Test Context
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleTestWeekSkeleton} disabled={debugLoading}>
+            <Bug className="h-4 w-4 mr-1" />
+            Test Week Skeleton
           </Button>
           <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
