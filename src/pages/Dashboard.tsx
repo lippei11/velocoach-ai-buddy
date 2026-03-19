@@ -83,25 +83,46 @@ export default function Dashboard() {
     lastSyncAt, athleteName, refresh, syncAndReload,
   } = useIntervalsData();
   const navigate = useNavigate();
-  const [contextModalOpen, setContextModalOpen] = useState(false);
-  const [contextJson, setContextJson] = useState<string | null>(null);
-  const [contextLoading, setContextLoading] = useState(false);
+  const [debugModalOpen, setDebugModalOpen] = useState(false);
+  const [debugModalTitle, setDebugModalTitle] = useState("");
+  const [debugJson, setDebugJson] = useState<string | null>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
 
   async function handleTestContext() {
-    setContextLoading(true);
-    setContextJson(null);
-    setContextModalOpen(true);
+    setDebugLoading(true);
+    setDebugJson(null);
+    setDebugModalTitle("compute-athlete-context Response");
+    setDebugModalOpen(true);
     try {
       const { data, error } = await supabase.functions.invoke("compute-athlete-context", {
         body: {},
       });
       if (error) throw error;
       console.log("compute-athlete-context response:", data);
-      setContextJson(JSON.stringify(data, null, 2));
+      setDebugJson(JSON.stringify(data, null, 2));
     } catch (e: any) {
-      setContextJson(`Error: ${e.message}`);
+      setDebugJson(`Error: ${e.message}`);
     } finally {
-      setContextLoading(false);
+      setDebugLoading(false);
+    }
+  }
+
+  async function handleTestWeekSkeleton() {
+    setDebugLoading(true);
+    setDebugJson(null);
+    setDebugModalTitle("generate-week-skeleton Response");
+    setDebugModalOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-week-skeleton", {
+        body: { weekStartDate: "2026-03-23" },
+      });
+      if (error) throw error;
+      console.log("generate-week-skeleton response:", data);
+      setDebugJson(JSON.stringify(data, null, 2));
+    } catch (e: any) {
+      setDebugJson(`Error: ${e.message}`);
+    } finally {
+      setDebugLoading(false);
     }
   }
 
