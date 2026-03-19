@@ -60,8 +60,14 @@ export function useDexcomConnection() {
         lastSyncAt: data.lastSyncAt ?? null,
         lastError: data.lastError ?? null,
       });
-    } catch {
-      // ignore — user may not have any connection row yet
+    } catch (e) {
+      // Only default to disconnected if we know there's no row (404-like).
+      // For network/auth errors, keep whatever status we had and surface the error.
+      console.warn("[Dexcom] check-status failed:", e);
+      setStatus((prev) => ({
+        ...prev,
+        lastError: e instanceof Error ? e.message : "Status check failed",
+      }));
     } finally {
       setLoading(false);
     }
