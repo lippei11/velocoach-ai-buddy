@@ -16,24 +16,10 @@ interface GlucoseReading {
   trend: string;
 }
 
-const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dexcom-sync`;
-
 async function callDexcomSync(body: Record<string, unknown>) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("Not authenticated");
-
-  const res = await fetch(FUNCTION_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-  return json;
+  const { data, error } = await supabase.functions.invoke("dexcom-sync", { body });
+  if (error) throw new Error(error.message ?? "Edge function error");
+  return data;
 }
 
 export function useDexcomConnection() {
