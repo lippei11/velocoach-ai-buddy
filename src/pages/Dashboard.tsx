@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, ReferenceLine
+  ResponsiveContainer, Legend
 } from "recharts";
 import { useIntervalsData } from "@/hooks/useIntervalsData";
 import { useNavigate } from "react-router-dom";
