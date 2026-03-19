@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import IntervalsConnectionCard from "@/components/settings/IntervalsConnectionCard";
 import DexcomConnectionCard from "@/components/settings/DexcomConnectionCard";
 import { useAthletePreferences } from "@/hooks/useAthletePreferences";
+import { formatDistanceToNow } from "date-fns";
+import { de } from "date-fns/locale";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -27,7 +29,7 @@ const DEMAND_PROFILES = [
 ];
 
 export default function SettingsPage() {
-  const { prefs, setPrefs, loading, saving, save } = useAthletePreferences();
+  const { prefs, setPrefs, loading, saving, save, updatedAt } = useAthletePreferences();
 
   const toggleDay = (day: string) => {
     setPrefs((p) => ({
@@ -238,7 +240,14 @@ export default function SettingsPage() {
               </div>
 
               {/* Save */}
-              <div className="flex justify-end pt-2">
+              <div className="flex items-center justify-between pt-2">
+                <div>
+                  {updatedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Last saved: {formatDistanceToNow(new Date(updatedAt), { addSuffix: true, locale: de })}
+                    </p>
+                  )}
+                </div>
                 <Button size="sm" onClick={handleSaveSetup} disabled={saving}>
                   {saving ? "Saving…" : "Save Training Setup"}
                 </Button>

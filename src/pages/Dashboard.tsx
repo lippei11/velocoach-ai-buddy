@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, ReferenceLine
+  ResponsiveContainer, Legend
 } from "recharts";
 import { useIntervalsData } from "@/hooks/useIntervalsData";
 import { useNavigate } from "react-router-dom";
@@ -189,10 +189,9 @@ export default function Dashboard() {
     TSB: w.tsb ?? ((w.ctl ?? 0) - (w.atl ?? 0)),
   }));
 
-  const ctlTarget = ctl != null ? Math.round(ctl * 5.5) : null;
   const barData = weeklyTSS.map((w) => ({
     ...w,
-    fill: ctl != null && w.tss > ctl * 7 ? "#3B82F6" : "hsl(var(--muted-foreground) / 0.4)",
+    fill: "hsl(var(--primary))",
   }));
 
   const last10 = activities.slice(0, 10);
@@ -273,6 +272,11 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Woche</p>
                 <span className="text-2xl font-bold font-mono">{currentWeekTSS}</span>
                 <p className="text-xs text-muted-foreground">TSS</p>
+                {weeklyTSS.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    4-Wochen-Schnitt: {Math.round(weeklyTSS.slice(-4).reduce((s, w) => s + w.tss, 0) / Math.min(4, weeklyTSS.length))} TSS
+                  </p>
+                )}
               </CardContent>
             </Card>
           </>
@@ -344,14 +348,6 @@ export default function Dashboard() {
                       fontSize: 12,
                     }}
                   />
-                  {ctlTarget != null && (
-                    <ReferenceLine
-                      y={ctlTarget}
-                      stroke="#F97316"
-                      strokeDasharray="4 4"
-                      label={{ value: `Ziel ${ctlTarget}`, fill: "#F97316", fontSize: 10, position: "right" }}
-                    />
-                  )}
                   <Bar
                     dataKey="tss"
                     name="TSS"

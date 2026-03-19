@@ -31,6 +31,7 @@ export function useAthletePreferences() {
   const [prefs, setPrefs] = useState<AthletePreferences>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -56,6 +57,7 @@ export function useAthletePreferences() {
         strength_sessions_per_week: d.strength_sessions_per_week ?? DEFAULTS.strength_sessions_per_week,
         constraints_notes: d.constraints_notes ?? "",
       });
+      setUpdatedAt(d.updated_at ?? null);
     }
     setLoading(false);
   }, []);
@@ -79,8 +81,9 @@ export function useAthletePreferences() {
     setSaving(false);
     if (error) return false;
     setPrefs(updated);
+    setUpdatedAt(row.updated_at);
     return true;
   }, []);
 
-  return { prefs, setPrefs, loading, saving, save };
+  return { prefs, setPrefs, loading, saving, save, updatedAt };
 }
