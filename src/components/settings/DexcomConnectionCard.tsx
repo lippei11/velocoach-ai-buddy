@@ -30,8 +30,11 @@ export default function DexcomConnectionCard() {
       return;
     }
     try {
-      await connect(username.trim(), password.trim());
+      const result = await connect(username.trim(), password.trim());
       toast.success("Dexcom CGM connected successfully");
+      if (result?.vaultWarning) {
+        toast.warning(result.vaultWarning, { duration: 8000 });
+      }
       setUsername("");
       setPassword("");
     } catch (e) {

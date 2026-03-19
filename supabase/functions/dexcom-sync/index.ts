@@ -182,33 +182,50 @@ Deno.serve(async (req) => {
         vaultId = "";
       }
 
-      // 3. Upsert into athlete_connections
+      // 3. Update Dexcom columns only — never touch Intervals columns
       const now = new Date().toISOString();
-      const { error: upsertError } = await supabaseAdmin
-        .from("athlete_connections")
-        .upsert(
-          {
-            user_id: userId,
-            // Keep required NOT NULL columns stable — provide defaults only if truly new row
-            intervals_api_key: "",
-            intervals_athlete_id: "",
-            dexcom_username: username,
-            dexcom_password_vault_id: vaultId || null,
-            dexcom_session_id: sessionId,
-            dexcom_access_token: sessionId, // reuse existing column for compat
-            dexcom_connected: true,
-            dexcom_connected_at: now,
-            dexcom_last_error: null,
-            updated_at: now,
-          },
-          { onConflict: "user_id" }
-        );
+      const dexcomFields = {
+        dexcom_username: username,
+        dexcom_password_vault_id: vaultId || null,
+        dexcom_session_id: sessionId,
+        dexcom_access_token: sessionId,
+        dexcom_connected: true,
+        dexcom_connected_at: now,
+        dexcom_last_error: null,
+        updated_at: now,
+      };
 
-      if (upsertError) {
-        return jsonResponse({ error: upsertError.message }, 500);
+      // Try update first; if no row exists, insert with required NOT NULL defaults
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from("athlete_connections")
+        .update(dexcomFields)
+        .eq("user_id", userId)
+        .select("id")
+        .maybeSingle();
+
+      if (updateError) {
+        return jsonResponse({ error: updateError.message }, 500);
       }
 
-      return jsonResponse({ success: true, connected: true });
+      if (!updated) {
+        // No row yet — insert with required Intervals defaults
+        const { error: insertError } = await supabaseAdmin
+          .from("athlete_connections")
+          .insert({
+            user_id: userId,
+            intervals_api_key: "",
+            intervals_athlete_id: "",
+            ...dexcomFields,
+          });
+        if (insertError) {
+          return jsonResponse({ error: insertError.message }, 500);
+        }
+      }
+
+      const vaultWarning = vaultId ? undefined : "Password not stored in Vault — session-only mode. Re-auth on session expiry will not work automatically.";
+      if (vaultWarning) console.warn(vaultWarning);
+
+      return jsonResponse({ success: true, connected: true, vaultWarning });
     }
 
     // ─── sync-glucose ─────────────────────────────────────────────────────────
