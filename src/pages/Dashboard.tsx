@@ -189,7 +189,6 @@ export default function Dashboard() {
     TSB: w.tsb ?? ((w.ctl ?? 0) - (w.atl ?? 0)),
   }));
 
-  const ctlTarget = ctl != null ? Math.round(ctl * 5.5) : null;
   const barData = weeklyTSS.map((w) => ({
     ...w,
     fill: ctl != null && w.tss > ctl * 7 ? "#3B82F6" : "hsl(var(--muted-foreground) / 0.4)",
