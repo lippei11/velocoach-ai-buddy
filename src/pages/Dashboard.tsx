@@ -92,22 +92,12 @@ export default function Dashboard() {
     setContextJson(null);
     setContextModalOpen(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/compute-athlete-context`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({}),
-        }
-      );
-      const json = await res.json();
-      console.log("compute-athlete-context response:", json);
-      setContextJson(JSON.stringify(json, null, 2));
+      const { data, error } = await supabase.functions.invoke("compute-athlete-context", {
+        body: {},
+      });
+      if (error) throw error;
+      console.log("compute-athlete-context response:", data);
+      setContextJson(JSON.stringify(data, null, 2));
     } catch (e: any) {
       setContextJson(`Error: ${e.message}`);
     } finally {
