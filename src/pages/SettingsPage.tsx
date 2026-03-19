@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import IntervalsConnectionCard from "@/components/settings/IntervalsConnectionCard";
 import DexcomConnectionCard from "@/components/settings/DexcomConnectionCard";
 import { useAthletePreferences } from "@/hooks/useAthletePreferences";
+import { formatDistanceToNow } from "date-fns";
+import { de } from "date-fns/locale";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
