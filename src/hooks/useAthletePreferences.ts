@@ -31,6 +31,7 @@ export function useAthletePreferences() {
   const [prefs, setPrefs] = useState<AthletePreferences>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
