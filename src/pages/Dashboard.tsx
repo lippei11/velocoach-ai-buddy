@@ -83,25 +83,46 @@ export default function Dashboard() {
     lastSyncAt, athleteName, refresh, syncAndReload,
   } = useIntervalsData();
   const navigate = useNavigate();
-  const [contextModalOpen, setContextModalOpen] = useState(false);
-  const [contextJson, setContextJson] = useState<string | null>(null);
-  const [contextLoading, setContextLoading] = useState(false);
+  const [debugModalOpen, setDebugModalOpen] = useState(false);
+  const [debugModalTitle, setDebugModalTitle] = useState("");
+  const [debugJson, setDebugJson] = useState<string | null>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
 
   async function handleTestContext() {
-    setContextLoading(true);
-    setContextJson(null);
-    setContextModalOpen(true);
+    setDebugLoading(true);
+    setDebugJson(null);
+    setDebugModalTitle("compute-athlete-context Response");
+    setDebugModalOpen(true);
     try {
       const { data, error } = await supabase.functions.invoke("compute-athlete-context", {
         body: {},
       });
       if (error) throw error;
       console.log("compute-athlete-context response:", data);
-      setContextJson(JSON.stringify(data, null, 2));
+      setDebugJson(JSON.stringify(data, null, 2));
     } catch (e: any) {
-      setContextJson(`Error: ${e.message}`);
+      setDebugJson(`Error: ${e.message}`);
     } finally {
-      setContextLoading(false);
+      setDebugLoading(false);
+    }
+  }
+
+  async function handleTestWeekSkeleton() {
+    setDebugLoading(true);
+    setDebugJson(null);
+    setDebugModalTitle("generate-week-skeleton Response");
+    setDebugModalOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-week-skeleton", {
+        body: { weekStartDate: "2026-03-23" },
+      });
+      if (error) throw error;
+      console.log("generate-week-skeleton response:", data);
+      setDebugJson(JSON.stringify(data, null, 2));
+    } catch (e: any) {
+      setDebugJson(`Error: ${e.message}`);
+    } finally {
+      setDebugLoading(false);
     }
   }
 
@@ -209,9 +230,13 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleTestContext} disabled={contextLoading}>
+          <Button variant="outline" size="sm" onClick={handleTestContext} disabled={debugLoading}>
             <Bug className="h-4 w-4 mr-1" />
             Test Context
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleTestWeekSkeleton} disabled={debugLoading}>
+            <Bug className="h-4 w-4 mr-1" />
+            Test Week Skeleton
           </Button>
           <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -437,18 +462,18 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Debug: Test Context Modal */}
-      <Dialog open={contextModalOpen} onOpenChange={setContextModalOpen}>
+      {/* Debug Modal */}
+      <Dialog open={debugModalOpen} onOpenChange={setDebugModalOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-sm font-mono">compute-athlete-context Response</DialogTitle>
-              {contextJson && !contextLoading && (
+              <DialogTitle className="text-sm font-mono">{debugModalTitle}</DialogTitle>
+              {debugJson && !debugLoading && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    navigator.clipboard.writeText(contextJson);
+                    navigator.clipboard.writeText(debugJson);
                     import("sonner").then(({ toast }) => toast.success("JSON kopiert"));
                   }}
                 >
@@ -458,13 +483,13 @@ export default function Dashboard() {
             </div>
           </DialogHeader>
           <div className="flex-1 overflow-auto">
-            {contextLoading ? (
+            {debugLoading ? (
               <div className="flex items-center justify-center py-12">
                 <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
               <pre className="text-xs font-mono bg-muted p-4 rounded-md whitespace-pre-wrap break-all">
-                {contextJson ?? "No data"}
+                {debugJson ?? "No data"}
               </pre>
             )}
           </div>

@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .single();
 
-    if (profile?.ftp != null) {
+    if (profile?.ftp) {
       ftpWatts = profile.ftp;
       if (profile.synced_at) {
         const syncedAt = new Date(profile.synced_at);
