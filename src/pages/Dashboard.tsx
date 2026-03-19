@@ -273,6 +273,11 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Woche</p>
                 <span className="text-2xl font-bold font-mono">{currentWeekTSS}</span>
                 <p className="text-xs text-muted-foreground">TSS</p>
+                {weeklyTSS.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    4-Wochen-Schnitt: {Math.round(weeklyTSS.slice(-4).reduce((s, w) => s + w.tss, 0) / Math.min(4, weeklyTSS.length))} TSS
+                  </p>
+                )}
               </CardContent>
             </Card>
           </>
