@@ -13,14 +13,21 @@ export type {
 import type {
   SessionStressType,
   SessionPurpose,
+  SessionSlot,
+  WeeklyStressBudget,
   Phase,
-  WeekSkeleton as FullWeekSkeleton,
 } from "@/lib/coaching/velocoach-interfaces";
 
-// Re-export WeekSkeleton (UI components use the same shape)
-export type WeekSkeleton = FullWeekSkeleton;
-
 export type SlotPriority = "low" | "medium" | "high";
+
+// UI-facing WeekSkeleton (subset of the full velocoach WeekSkeleton)
+// The edge function response only includes these fields.
+export interface WeekSkeleton {
+  slots: SessionSlot[];
+  weekFocus: string;
+  rationaleShort: string;
+  weeklyStressBudget: WeeklyStressBudget;
+}
 
 // Pipeline-specific types (not in velocoach-interfaces)
 
