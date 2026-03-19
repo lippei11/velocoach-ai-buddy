@@ -222,7 +222,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      return jsonResponse({ success: true, connected: true });
+      const vaultWarning = vaultId ? undefined : "Password not stored in Vault — session-only mode. Re-auth on session expiry will not work automatically.";
+      if (vaultWarning) console.warn(vaultWarning);
+
+      return jsonResponse({ success: true, connected: true, vaultWarning });
     }
 
     // ─── sync-glucose ─────────────────────────────────────────────────────────
