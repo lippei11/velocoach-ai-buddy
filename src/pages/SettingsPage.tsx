@@ -17,14 +17,13 @@ import { useAthletePreferences } from "@/hooks/useAthletePreferences";
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const DEMAND_PROFILES = [
-  { value: "road_race", label: "Road Race" },
-  { value: "crit", label: "Criterium" },
-  { value: "gran_fondo", label: "Gran Fondo" },
-  { value: "time_trial", label: "Time Trial" },
-  { value: "gravel", label: "Gravel" },
-  { value: "cx", label: "Cyclocross" },
-  { value: "mtb_xc", label: "MTB XC" },
-  { value: "general_fitness", label: "General Fitness" },
+  { value: "steady_climbing", label: "Gran Fondo (Alpine / Hilly)" },
+  { value: "long_gravel", label: "Gran Fondo (Gravel / Flat)" },
+  { value: "time_trial", label: "Time Trial / Triathlon" },
+  { value: "punchy_stochastic", label: "Criterium / Road Race" },
+  { value: "ultra_endurance", label: "Ultra Endurance (12h+)" },
+  { value: "ftp_build", label: "FTP Development" },
+  { value: "mixed_hobby_fitness", label: "General Fitness" },
 ];
 
 export default function SettingsPage() {
