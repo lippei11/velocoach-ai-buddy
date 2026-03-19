@@ -1,132 +1,130 @@
-import { WeekData, DayData } from "@/types/trainingPlan";
-import { Progress } from "@/components/ui/progress";
-import { format, parseISO, isSameDay } from "date-fns";
-import { Check, X } from "lucide-react";
+import { SessionSlot, SLOT_TYPE_COLORS, PURPOSE_LABELS, SLOT_TYPE_LABELS } from "@/types/pipeline";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format, parseISO, addDays, startOfWeek, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
-import { WORKOUT_LABELS } from "@/lib/planUtils";
-import React from "react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-interface Props {
-  weeks: WeekData[];
-  onDayClick: (day: DayData) => void;
-  onWeekClick: (week: WeekData) => void;
-  selectedWeek?: WeekData | null;
-  selectedDay?: DayData | null;
-  weekRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+function indoorIcon(val: SessionSlot["indoorOutdoor"]): string {
+  switch (val) {
+    case "indoor_only":
+    case "indoor_preferred":
+      return "🏠";
+    case "outdoor_only":
+    case "outdoor_preferred":
+      return "🌤";
+    default:
+      return "~";
+  }
 }
 
-export function WeeklyCalendar({ weeks, onDayClick, onWeekClick, selectedWeek, selectedDay, weekRefs }: Props) {
+interface WeeklyCalendarProps {
+  slots: SessionSlot[];
+  weekStartDate: string;
+  onSlotClick: (slot: SessionSlot) => void;
+  loading?: boolean;
+}
+
+export function WeeklyCalendar({ slots, weekStartDate, onSlotClick, loading }: WeeklyCalendarProps) {
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-7 gap-2">
+          {[...Array(7)].map((_, i) => <Skeleton key={i} className="h-6" />)}
+        </div>
+        <div className="grid grid-cols-7 gap-2">
+          {[...Array(7)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const monday = parseISO(weekStartDate);
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
 
+  // Build a map: day index → slot
+  const slotMap = new Map<number, SessionSlot>();
+  for (const s of slots) {
+    slotMap.set(s.day, s);
+  }
+
   return (
     <div className="space-y-2">
-      {/* Day labels header */}
-      <div className="grid grid-cols-[140px_repeat(7,1fr)] gap-1">
-        <div />
+      {/* Day labels */}
+      <div className="grid grid-cols-7 gap-2">
         {DAY_LABELS.map((d) => (
           <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
         ))}
       </div>
 
-      {weeks.map((week) => {
-        const progressPct = week.tssTarget > 0 ? Math.min(100, (week.tssActual / week.tssTarget) * 100) : 0;
-        const isSelectedWeek = selectedWeek?.startDate === week.startDate;
+      {/* Day cells */}
+      <div className="grid grid-cols-7 gap-2">
+        {Array.from({ length: 7 }, (_, i) => {
+          const date = addDays(monday, i);
+          const dateStr = format(date, "yyyy-MM-dd");
+          const isToday = dateStr === todayStr;
+          const slot = slotMap.get(i);
+          const dayNum = format(date, "d");
 
-        return (
-          <div
-            key={week.startDate}
-            ref={(el) => { if (week.phase) weekRefs.current[week.phase.id] = el; }}
-            className="grid grid-cols-[140px_repeat(7,1fr)] gap-1"
-          >
-            {/* Week header — clickable for week context */}
+          return (
             <button
-              onClick={() => onWeekClick(week)}
+              key={i}
+              onClick={() => slot && onSlotClick(slot)}
+              disabled={!slot}
               className={cn(
-                "rounded-lg border bg-card p-2 space-y-1 text-left transition-colors hover:bg-accent",
-                isSelectedWeek ? "border-primary ring-1 ring-primary/30" : "border-border"
+                "rounded-lg border bg-card p-2 min-h-[120px] text-left transition-colors relative",
+                isToday ? "border-primary border-2" : "border-border",
+                slot ? "hover:bg-accent cursor-pointer" : "opacity-60 cursor-default"
               )}
             >
-              <p className="text-xs font-semibold">
-                {format(parseISO(week.startDate), "MMM d")} – {format(parseISO(week.endDate), "MMM d")}
-              </p>
-              {week.phaseWeekLabel && (
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {week.phaseWeekLabel}
-                </p>
-              )}
-              <div className="space-y-0.5">
-                <p className="text-[10px] text-muted-foreground">
-                  {week.tssActual} / {week.tssTarget} TSS
-                </p>
-                <Progress value={progressPct} className="h-1.5" />
-              </div>
-            </button>
+              <span className={cn(
+                "text-[10px]",
+                isToday ? "text-primary font-bold" : "text-muted-foreground"
+              )}>{dayNum}</span>
 
-            {/* Day cells */}
-            {week.days.map((day) => {
-              const hasPlanned = !!day.planned;
-              const hasCompleted = !!day.completed;
-              const dayDate = parseISO(day.date);
-              const isMissed = hasPlanned && !hasCompleted && dayDate < today && !isSameDay(dayDate, today);
-              const isToday = day.date === todayStr;
-              const isSelected = selectedDay?.date === day.date;
-              const dayNum = format(dayDate, "d");
+              {slot ? (
+                <div className="mt-1.5 space-y-1">
+                  {/* Purpose title */}
+                  <div
+                    className="rounded px-1.5 py-0.5 text-[10px] font-semibold leading-tight"
+                    style={{
+                      backgroundColor: SLOT_TYPE_COLORS[slot.slotType] + "22",
+                      color: SLOT_TYPE_COLORS[slot.slotType],
+                    }}
+                  >
+                    {PURPOSE_LABELS[slot.purpose]}
+                  </div>
 
-              return (
-                <button
-                  key={day.date}
-                  onClick={() => onDayClick(day)}
-                  className={cn(
-                    "rounded-lg border bg-card p-1.5 min-h-[80px] text-left transition-colors hover:bg-accent relative",
-                    isToday ? "border-primary border-2" : isSelected ? "border-primary/60 ring-1 ring-primary/20" : "border-border",
-                    hasCompleted && "ring-1 ring-success/30"
-                  )}
-                >
-                  <span className={cn(
-                    "text-[10px]",
-                    isToday ? "text-primary font-bold" : "text-muted-foreground"
-                  )}>{dayNum}</span>
+                  {/* Duration + TSS */}
+                  <p className="text-[10px] text-muted-foreground">
+                    {slot.durationMinutes} min · TSS {slot.targetTss}
+                  </p>
 
-                  {hasPlanned && (
-                    <div
-                      className="mt-1 rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight"
-                      style={{ backgroundColor: day.planned!.color + "22", color: day.planned!.color }}
-                    >
-                      <span className="block truncate">{day.planned!.name}</span>
-                      <span className="opacity-60 text-[9px]">
-                        {WORKOUT_LABELS[day.planned!.workoutType] || day.planned!.workoutType}
-                        {day.planned!.tssTarget != null && ` · ${day.planned!.tssTarget}`}
-                      </span>
-                    </div>
-                  )}
-
-                  {hasCompleted && (
-                    <div className="absolute top-1 right-1 flex items-center gap-0.5">
-                      <Check className="h-3 w-3 text-success" />
-                      {day.completed!.tss != null && (
-                        <span className="text-[9px] text-success">{day.completed!.tss}</span>
+                  {/* Priority + Indoor/Outdoor */}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[8px] px-1 py-0 leading-tight",
+                        slot.priority === "high" && "border-destructive text-destructive",
+                        slot.priority === "medium" && "border-warning text-warning",
+                        slot.priority === "low" && "border-muted-foreground text-muted-foreground"
                       )}
-                    </div>
-                  )}
-
-                  {isMissed && (
-                    <div className="absolute top-1 right-1">
-                      <X className="h-3 w-3 text-destructive" />
-                    </div>
-                  )}
-
-                  {!hasPlanned && !hasCompleted && (
-                    <span className="text-[10px] text-muted-foreground/30 block mt-3 text-center">Rest</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        );
-      })}
+                    >
+                      {slot.priority}
+                    </Badge>
+                    <span className="text-[10px]">{indoorIcon(slot.indoorOutdoor)}</span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/30 block mt-5 text-center">Rest</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
