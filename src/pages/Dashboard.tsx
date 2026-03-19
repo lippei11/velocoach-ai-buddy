@@ -348,14 +348,6 @@ export default function Dashboard() {
                       fontSize: 12,
                     }}
                   />
-                  {ctlTarget != null && (
-                    <ReferenceLine
-                      y={ctlTarget}
-                      stroke="#F97316"
-                      strokeDasharray="4 4"
-                      label={{ value: `Ziel ${ctlTarget}`, fill: "#F97316", fontSize: 10, position: "right" }}
-                    />
-                  )}
                   <Bar
                     dataKey="tss"
                     name="TSS"

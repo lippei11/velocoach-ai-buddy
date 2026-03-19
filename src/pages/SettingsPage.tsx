@@ -240,7 +240,14 @@ export default function SettingsPage() {
               </div>
 
               {/* Save */}
-              <div className="flex justify-end pt-2">
+              <div className="flex items-center justify-between pt-2">
+                <div>
+                  {updatedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Last saved: {formatDistanceToNow(new Date(updatedAt), { addSuffix: true, locale: de })}
+                    </p>
+                  )}
+                </div>
                 <Button size="sm" onClick={handleSaveSetup} disabled={saving}>
                   {saving ? "Saving…" : "Save Training Setup"}
                 </Button>

@@ -81,8 +81,9 @@ export function useAthletePreferences() {
     setSaving(false);
     if (error) return false;
     setPrefs(updated);
+    setUpdatedAt(row.updated_at);
     return true;
   }, []);
 
-  return { prefs, setPrefs, loading, saving, save };
+  return { prefs, setPrefs, loading, saving, save, updatedAt };
 }
