@@ -29,7 +29,7 @@ const DEMAND_PROFILES = [
 ];
 
 export default function SettingsPage() {
-  const { prefs, setPrefs, loading, saving, save } = useAthletePreferences();
+  const { prefs, setPrefs, loading, saving, save, updatedAt } = useAthletePreferences();
 
   const toggleDay = (day: string) => {
     setPrefs((p) => ({
