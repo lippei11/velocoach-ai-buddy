@@ -5,6 +5,3 @@ verify_jwt = false
 
 [functions.ai-coach]
 verify_jwt = false
-
-[functions.generate-week-skeleton]
-verify_jwt = false
