@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
   // --- Build plan structure from AthleteState ---
   const plan = generatePlanStructure({
     eventDate: (athleteState.eventDate as string | null) ?? null,
-    todayDate: todayIso(),
+    todayDate: weekStartDate,
     currentCtl: (athleteState.recentLoad as Record<string, unknown>)?.ctl as number | null ?? null,
     eventDemandProfile: (athleteState.eventDemandProfile as string | null) ?? null,
     hoursPerWeek:
