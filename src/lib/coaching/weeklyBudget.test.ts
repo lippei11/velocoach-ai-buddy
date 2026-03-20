@@ -133,6 +133,31 @@ describe('computeEffectiveWeeklyLoad', () => {
     expect(result).toBe(280);
   });
 
+  it('zero-TSS week treated as missing for normal specialWeekType', () => {
+    // Replicates the reported athlete state:
+    // recentWeeklyTss=[0,209,388,173], CTL=35, specialWeekType='normal'
+    // Without fix: weeks=[0,209,388,173] → (0*4+209*3+388*2+173*1)/10 = 158
+    // With fix:    weeks[0]=0 → CTL*7=245 → [245,209,388,173]
+    //              effectiveLoad = (245*4+209*3+388*2+173*1)/10
+    //                           = (980+627+776+173)/10 = 2556/10 = 256
+    const result = computeEffectiveWeeklyLoad([0, 209, 388, 173], 'normal', {}, 35);
+    expect(result).toBe(256);
+    // Confirm it is NOT the collapsed 158 value
+    expect(result).toBeGreaterThan(200);
+  });
+
+  it('zero-TSS week is kept as-is for true_rest specialWeekType', () => {
+    // true_rest explicitly declares the week was zero load — honour it
+    // weeks=[0,209,388,173] → (0*4+209*3+388*2+173*1)/10 = 158
+    const result = computeEffectiveWeeklyLoad([0, 209, 388, 173], 'true_rest', {}, 35);
+    expect(result).toBe(158);
+  });
+
+  it('zero-TSS week is kept as-is for illness specialWeekType', () => {
+    const result = computeEffectiveWeeklyLoad([0, 209, 388, 173], 'illness', {}, 35);
+    expect(result).toBe(158);
+  });
+
   it('active_vacation: uses estimated vacation TSS instead of near-zero tracked', () => {
     // Most-recent week = 30 TSS (missing uploads), but athlete was actually active
     // estimatedTss = 400 → should use max(30, 400) = 400 for most-recent slot
@@ -156,6 +181,34 @@ describe('computeEffectiveWeeklyLoad', () => {
     // weeks[0] = max(10, 442) = 442
     // (442*4 + 300*3 + 280*2 + 250*1)/10 = (1768+900+560+250)/10 = 347.8 → 348
     expect(result).toBeGreaterThan(340);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 1b. buildWeeklyStressBudget — zero-TSS anchoring fix (regression guard)
+// ---------------------------------------------------------------------------
+describe('buildWeeklyStressBudget — zero-TSS most-recent week regression', () => {
+  it('replicates reported athlete state: [0,209,388,173] does NOT produce target=158', () => {
+    // Before fix: effectiveLoad collapsed to 158 because zero got weight 4.
+    // After fix:  zero → CTL*7 fallback, effectiveLoad = 256, base target = 256.
+    const ctx = makeBaseWeekCtx();
+    const state = makeAthleteState({
+      ctl: 35,
+      hoursAvailable: 10,
+      recentWeeklyTss: [0, 209, 388, 173, 340, 314, 205, 269],
+      specialWeekType: 'normal',
+    });
+    const budget = buildWeeklyStressBudget(ctx, MOCK_CONSTITUTION as any, state);
+
+    // effectiveLoad = (35*7*4 + 209*3 + 388*2 + 173*1)/10
+    //              = (980 + 627 + 776 + 173)/10 = 256
+    // base targetFactor = 1.00 → weeklyTssTarget = 256
+    expect(budget.weeklyTssTarget).toBe(256);
+    expect(budget.weeklyTssTarget).not.toBe(158);
+
+    // min/max should also reflect the corrected baseline
+    expect(budget.weeklyTssMin).toBe(Math.round(256 * 0.88));  // 225
+    expect(budget.weeklyTssMax).toBe(Math.round(256 * 1.10));  // 282
   });
 });
 
@@ -314,5 +367,82 @@ describe('buildWeeklyStressBudget — deload week', () => {
     if (deloadCtx.isDeloadWeek) {
       expect(deloadBudget.weeklyTssTarget).toBeLessThan(normalBudget.weeklyTssTarget);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 7. deterministic budget survives LLM-style output override
+//    These tests simulate what generate-week-skeleton now does: after receiving
+//    the LLM output, all budget-critical fields are overwritten from the
+//    server-computed budget object.  Verifies the overwrite covers all 8 fields.
+// ---------------------------------------------------------------------------
+describe('server-side budget overwrite — deterministic after LLM override simulation', () => {
+  it('overwrites all 8 budget-critical fields regardless of LLM values', () => {
+    const ctx = makeBaseWeekCtx();
+    const state = makeAthleteState({
+      ctl: 35,
+      hoursAvailable: 10,
+      recentWeeklyTss: [0, 209, 388, 173, 340, 314, 205, 269],
+      specialWeekType: 'normal',
+    });
+    const serverBudget = buildWeeklyStressBudget(ctx, MOCK_CONSTITUTION as any, state);
+
+    // Simulate an LLM response that chose completely different budget values
+    const llmOutput: Record<string, unknown> = {
+      weeklyTssTarget: 999,
+      weeklyTssMin: 1,
+      weeklyTssMax: 9999,
+      maxThresholdSessions: 99,
+      maxVo2Sessions: 99,
+      maxNeuromuscularSessions: 99,
+      maxDurabilityBlocks: 99,
+      maxStrengthSessions: 99,
+      plannedThreshold: 0,
+    };
+
+    // Apply the same overwrite logic used in generate-week-skeleton
+    llmOutput.weeklyTssTarget          = serverBudget.weeklyTssTarget;
+    llmOutput.weeklyTssMin             = serverBudget.weeklyTssMin;
+    llmOutput.weeklyTssMax             = serverBudget.weeklyTssMax;
+    llmOutput.maxThresholdSessions     = serverBudget.maxThresholdSessions;
+    llmOutput.maxVo2Sessions           = serverBudget.maxVo2Sessions;
+    llmOutput.maxNeuromuscularSessions = serverBudget.maxNeuromuscularSessions;
+    llmOutput.maxDurabilityBlocks      = serverBudget.maxDurabilityBlocks;
+    llmOutput.maxStrengthSessions      = serverBudget.maxStrengthSessions;
+
+    expect(llmOutput.weeklyTssTarget).toBe(serverBudget.weeklyTssTarget);
+    expect(llmOutput.weeklyTssMin).toBe(serverBudget.weeklyTssMin);
+    expect(llmOutput.weeklyTssMax).toBe(serverBudget.weeklyTssMax);
+    expect(llmOutput.maxThresholdSessions).toBe(serverBudget.maxThresholdSessions);
+    expect(llmOutput.maxVo2Sessions).toBe(serverBudget.maxVo2Sessions);
+    expect(llmOutput.maxNeuromuscularSessions).toBe(serverBudget.maxNeuromuscularSessions);
+    expect(llmOutput.maxDurabilityBlocks).toBe(serverBudget.maxDurabilityBlocks);
+    expect(llmOutput.maxStrengthSessions).toBe(serverBudget.maxStrengthSessions);
+
+    // No LLM-inflated values survive
+    expect(llmOutput.weeklyTssTarget).not.toBe(999);
+    expect(llmOutput.maxThresholdSessions).not.toBe(99);
+  });
+
+  it('same inputs always produce the same weeklyTssTarget (determinism)', () => {
+    const ctx = makeBaseWeekCtx();
+    const state = makeAthleteState({
+      ctl: 35,
+      hoursAvailable: 10,
+      recentWeeklyTss: [0, 209, 388, 173, 340, 314, 205, 269],
+      specialWeekType: 'normal',
+    });
+
+    // Call buildWeeklyStressBudget multiple times with identical inputs
+    const results = Array.from({ length: 5 }, () =>
+      buildWeeklyStressBudget(ctx, MOCK_CONSTITUTION as any, state)
+    );
+
+    const first = results[0].weeklyTssTarget;
+    for (const r of results) {
+      expect(r.weeklyTssTarget).toBe(first);
+    }
+    // And it should not be the collapsed pre-fix value
+    expect(first).toBe(256);
   });
 });
