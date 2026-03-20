@@ -672,6 +672,22 @@ export function buildWeeklyStressBudget(
 
 const HARD_SLOT_TYPES = new Set(["threshold", "vo2max", "neuromuscular"]);
 
+const VALID_SLOT_TYPES = new Set([
+  "recovery", "endurance_base", "threshold", "vo2max",
+  "durability", "neuromuscular", "strength",
+]);
+
+const VALID_PURPOSES = new Set([
+  "recovery", "endurance", "long_ride", "sweet_spot",
+  "threshold", "back_to_back", "climb_simulation",
+  "vo2max", "sprint", "strength",
+]);
+
+const VALID_INDOOR_OUTDOOR = new Set([
+  "indoor_only", "outdoor_only", "indoor_preferred",
+  "outdoor_preferred", "flexible",
+]);
+
 /**
  * Validates a WeekSkeleton returned by the LLM Planning Agent.
  * Returns an array of errors (empty = valid).
@@ -773,14 +789,31 @@ export function validateWeekSkeleton(
       });
     }
 
-    // purpose
-    if (typeof sl["purpose"] !== "string" || !(sl["purpose"] as string).trim()) {
-      errors.push({ field: `slots[${i}].purpose`, code: "REQUIRED", message: "purpose must be a non-empty string" });
+    // purpose — must be exact SessionPurpose enum value
+    if (typeof sl["purpose"] !== "string" || !VALID_PURPOSES.has(sl["purpose"] as string)) {
+      errors.push({
+        field: `slots[${i}].purpose`,
+        code: "INVALID_ENUM",
+        message: `purpose "${sl["purpose"]}" is not a valid SessionPurpose. Must be one of: ${[...VALID_PURPOSES].join(", ")}`,
+      });
     }
 
-    // slotType
-    if (typeof sl["slotType"] !== "string" || !(sl["slotType"] as string).trim()) {
-      errors.push({ field: `slots[${i}].slotType`, code: "REQUIRED", message: "slotType must be a non-empty string" });
+    // slotType — must be exact SessionStressType enum value
+    if (typeof sl["slotType"] !== "string" || !VALID_SLOT_TYPES.has(sl["slotType"] as string)) {
+      errors.push({
+        field: `slots[${i}].slotType`,
+        code: "INVALID_ENUM",
+        message: `slotType "${sl["slotType"]}" is not a valid SessionStressType. Must be one of: ${[...VALID_SLOT_TYPES].join(", ")}`,
+      });
+    }
+
+    // indoorOutdoor — must be exact IndoorOutdoorPreference enum value
+    if (typeof sl["indoorOutdoor"] !== "string" || !VALID_INDOOR_OUTDOOR.has(sl["indoorOutdoor"] as string)) {
+      errors.push({
+        field: `slots[${i}].indoorOutdoor`,
+        code: "INVALID_ENUM",
+        message: `indoorOutdoor "${sl["indoorOutdoor"]}" is not a valid IndoorOutdoorPreference. Must be one of: ${[...VALID_INDOOR_OUTDOOR].join(", ")}`,
+      });
     }
 
     // durationMinutes

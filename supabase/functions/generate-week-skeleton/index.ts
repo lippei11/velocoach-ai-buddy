@@ -101,6 +101,40 @@ Rules (enforced by the validator — violations will cause a retry):
    priority, durationMinutes (>=15), targetTss (>=0), indoorOutdoor, rationaleShort.
 7. Respond ONLY with valid JSON. No prose, no markdown fences.
 
+CRITICAL — use exact TypeScript enum values only (validator rejects anything else):
+
+slotType must be exactly one of:
+  "recovery" | "endurance_base" | "threshold" | "vo2max" |
+  "durability" | "neuromuscular" | "strength"
+
+purpose must be exactly one of:
+  "recovery" | "endurance" | "long_ride" | "sweet_spot" |
+  "threshold" | "back_to_back" | "climb_simulation" |
+  "vo2max" | "sprint" | "strength"
+
+indoorOutdoor must be exactly one of:
+  "indoor_only" | "outdoor_only" | "indoor_preferred" |
+  "outdoor_preferred" | "flexible"
+
+slotType ≠ purpose. They are different fields:
+  slotType = physiological stress category
+  purpose  = specific workout type
+
+Required purpose → slotType mapping (always follow this):
+  purpose "endurance"        → slotType "endurance_base"
+  purpose "long_ride"        → slotType "durability"
+  purpose "back_to_back"     → slotType "durability"
+  purpose "sweet_spot"       → slotType "threshold"
+  purpose "threshold"        → slotType "threshold"
+  purpose "climb_simulation" → slotType "threshold"
+  purpose "vo2max"           → slotType "vo2max"
+  purpose "sprint"           → slotType "neuromuscular"
+  purpose "recovery"         → slotType "recovery"
+  purpose "strength"         → slotType "strength"
+
+Do NOT use free text for purpose (e.g. "aerobic base" is wrong — use "endurance").
+Do NOT use shorthand for indoorOutdoor (e.g. "indoor" is wrong — use "indoor_preferred").
+
 Output schema (TypeScript for reference):
 {
   userId: string;
@@ -127,16 +161,16 @@ Output schema (TypeScript for reference):
     exceptionReason?: string;
   };
   intensityDistribution: { lowPct?: number; moderatePct?: number; highPct?: number };
-  keySessionTypes: string[];
+  keySessionTypes: Array<"recovery" | "endurance_base" | "threshold" | "vo2max" | "durability" | "neuromuscular" | "strength">;
   slots: Array<{
     day: number;
     plannedDate: string;
-    slotType: string;
-    purpose: string;
+    slotType: "recovery" | "endurance_base" | "threshold" | "vo2max" | "durability" | "neuromuscular" | "strength";
+    purpose: "recovery" | "endurance" | "long_ride" | "sweet_spot" | "threshold" | "back_to_back" | "climb_simulation" | "vo2max" | "sprint" | "strength";
     priority: "low" | "medium" | "high";
     durationMinutes: number;
     targetTss: number;
-    indoorOutdoor: string;
+    indoorOutdoor: "indoor_only" | "outdoor_only" | "indoor_preferred" | "outdoor_preferred" | "flexible";
     rationaleShort: string;
   }>;
   weekFocus: string;
