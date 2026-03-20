@@ -24,6 +24,7 @@ export {
   shouldActivateAdaptiveDeload,
   buildWeeklyStressBudget,
   computeEffectiveWeeklyLoad,
+  tallyPlannedSessions,
   validateWeekSkeleton,
   PHASE_LOAD,
 } from './planningCore';
