@@ -174,8 +174,8 @@ async function callPlanningLLM(
   systemPrompt: string,
   userPrompt: string
 ): Promise<string> {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY2");
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY2 not configured");
 
   const res = await fetch(ANTHROPIC_API, {
     method: "POST",
@@ -266,6 +266,7 @@ Deno.serve(async (req) => {
       ((athleteState.weeklyContext as Record<string, unknown>)?.hoursAvailable as number) ?? 8,
     strengthSessionsPerWeek:
       ((athleteState.preferences as Record<string, unknown>)?.strengthSessionsPerWeek as number | undefined),
+    constitutionVersion: constitution.version,
   });
 
   // --- Get week context ---
@@ -332,6 +333,7 @@ Deno.serve(async (req) => {
 
   // --- Return result ---
   return jsonResponse({
+    debug: { planningMode: "llm", planningImplementation: "weekly-planning-agent-v1" },
     weekSkeleton: skeleton,
     validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
     weekContext: {

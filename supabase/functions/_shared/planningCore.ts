@@ -13,7 +13,6 @@
  */
 
 import { addDays, differenceInDays, format, parseISO } from "date-fns";
-import constitutionData from "./constitution.json";
 
 // =============================================================================
 // INLINE TYPES (kept in sync with src/lib/coaching/velocoach-interfaces.ts)
@@ -42,8 +41,6 @@ export type SessionPurpose =
   | "vo2max"
   | "sprint"
   | "strength";
-
-type ConstitutionData = typeof constitutionData;
 
 // =============================================================================
 // TYPES
@@ -129,8 +126,6 @@ export interface WeekSkeletonValidationError {
 // =============================================================================
 // CONSTANTS (S6.4 + S7a)
 // =============================================================================
-
-const CONSTITUTION_VERSION: string = constitutionData.version;
 
 export const PHASE_LOAD: Record<
   Phase,
@@ -408,6 +403,7 @@ export function generatePlanStructure(input: {
   eventDemandProfile: EventDemandProfile | null;
   hoursPerWeek: number;
   strengthSessionsPerWeek?: number;
+  constitutionVersion?: string;
 }): PlanStructure {
   const {
     eventDate,
@@ -416,6 +412,7 @@ export function generatePlanStructure(input: {
     eventDemandProfile,
     hoursPerWeek,
     strengthSessionsPerWeek,
+    constitutionVersion = "7",
   } = input;
 
   const daysToEvent = eventDate
@@ -497,7 +494,7 @@ export function generatePlanStructure(input: {
     totalWeeks,
     phases,
     eventDemandProfile,
-    constitutionVersion: CONSTITUTION_VERSION,
+    constitutionVersion,
     strengthSessionsPerWeek: strengthPolicy,
     macroStrategy,
   };
