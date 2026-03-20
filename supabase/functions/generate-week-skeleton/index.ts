@@ -186,7 +186,17 @@ Deno.serve(async (req) => {
 
   if (stateError || !stateRow) {
     return jsonResponse(
-      { error: "Athlete state not found — run compute-athlete-context first." },
+      {
+        error: "Athlete state not found — run compute-athlete-context first.",
+        _debug: {
+          authenticatedUserId: userId,
+          userIdMatchesKnown: userId === "8fe4b639-34f0-42f0-99b5-7376ed20c219",
+          stateQueryError: stateError
+            ? { message: stateError.message, code: stateError.code, details: stateError.details }
+            : null,
+          stateRowFound: stateRow != null,
+        },
+      },
       422
     );
   }
