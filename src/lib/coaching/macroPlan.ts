@@ -1,8 +1,8 @@
 /**
  * macroPlan.ts — re-exports from planningCore.ts
  *
- * All macro-planning logic has moved to planningCore.ts so it can be shared
- * with the Deno edge functions via supabase/functions/_shared/planningCore.ts.
+ * planningCore.ts is now a shim that re-exports from the deploy-safe source
+ * of truth: supabase/functions/_shared/planningCore.ts.
  * This file is kept for backwards compatibility with existing imports.
  */
 export type {
