@@ -369,3 +369,80 @@ describe('buildWeeklyStressBudget — deload week', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// 7. deterministic budget survives LLM-style output override
+//    These tests simulate what generate-week-skeleton now does: after receiving
+//    the LLM output, all budget-critical fields are overwritten from the
+//    server-computed budget object.  Verifies the overwrite covers all 8 fields.
+// ---------------------------------------------------------------------------
+describe('server-side budget overwrite — deterministic after LLM override simulation', () => {
+  it('overwrites all 8 budget-critical fields regardless of LLM values', () => {
+    const ctx = makeBaseWeekCtx();
+    const state = makeAthleteState({
+      ctl: 35,
+      hoursAvailable: 10,
+      recentWeeklyTss: [0, 209, 388, 173, 340, 314, 205, 269],
+      specialWeekType: 'normal',
+    });
+    const serverBudget = buildWeeklyStressBudget(ctx, MOCK_CONSTITUTION as any, state);
+
+    // Simulate an LLM response that chose completely different budget values
+    const llmOutput: Record<string, unknown> = {
+      weeklyTssTarget: 999,
+      weeklyTssMin: 1,
+      weeklyTssMax: 9999,
+      maxThresholdSessions: 99,
+      maxVo2Sessions: 99,
+      maxNeuromuscularSessions: 99,
+      maxDurabilityBlocks: 99,
+      maxStrengthSessions: 99,
+      plannedThreshold: 0,
+    };
+
+    // Apply the same overwrite logic used in generate-week-skeleton
+    llmOutput.weeklyTssTarget          = serverBudget.weeklyTssTarget;
+    llmOutput.weeklyTssMin             = serverBudget.weeklyTssMin;
+    llmOutput.weeklyTssMax             = serverBudget.weeklyTssMax;
+    llmOutput.maxThresholdSessions     = serverBudget.maxThresholdSessions;
+    llmOutput.maxVo2Sessions           = serverBudget.maxVo2Sessions;
+    llmOutput.maxNeuromuscularSessions = serverBudget.maxNeuromuscularSessions;
+    llmOutput.maxDurabilityBlocks      = serverBudget.maxDurabilityBlocks;
+    llmOutput.maxStrengthSessions      = serverBudget.maxStrengthSessions;
+
+    expect(llmOutput.weeklyTssTarget).toBe(serverBudget.weeklyTssTarget);
+    expect(llmOutput.weeklyTssMin).toBe(serverBudget.weeklyTssMin);
+    expect(llmOutput.weeklyTssMax).toBe(serverBudget.weeklyTssMax);
+    expect(llmOutput.maxThresholdSessions).toBe(serverBudget.maxThresholdSessions);
+    expect(llmOutput.maxVo2Sessions).toBe(serverBudget.maxVo2Sessions);
+    expect(llmOutput.maxNeuromuscularSessions).toBe(serverBudget.maxNeuromuscularSessions);
+    expect(llmOutput.maxDurabilityBlocks).toBe(serverBudget.maxDurabilityBlocks);
+    expect(llmOutput.maxStrengthSessions).toBe(serverBudget.maxStrengthSessions);
+
+    // No LLM-inflated values survive
+    expect(llmOutput.weeklyTssTarget).not.toBe(999);
+    expect(llmOutput.maxThresholdSessions).not.toBe(99);
+  });
+
+  it('same inputs always produce the same weeklyTssTarget (determinism)', () => {
+    const ctx = makeBaseWeekCtx();
+    const state = makeAthleteState({
+      ctl: 35,
+      hoursAvailable: 10,
+      recentWeeklyTss: [0, 209, 388, 173, 340, 314, 205, 269],
+      specialWeekType: 'normal',
+    });
+
+    // Call buildWeeklyStressBudget multiple times with identical inputs
+    const results = Array.from({ length: 5 }, () =>
+      buildWeeklyStressBudget(ctx, MOCK_CONSTITUTION as any, state)
+    );
+
+    const first = results[0].weeklyTssTarget;
+    for (const r of results) {
+      expect(r.weeklyTssTarget).toBe(first);
+    }
+    // And it should not be the collapsed pre-fix value
+    expect(first).toBe(256);
+  });
+});

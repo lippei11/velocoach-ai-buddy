@@ -91,11 +91,18 @@ function buildSystemPrompt(): string {
   return `You are an elite cycling coach AI (VeloCoach Planning Agent).
 Your task is to generate a structured WeekSkeleton JSON object for a cyclist's training week.
 
+CRITICAL — budget ownership:
+The weeklyStressBudget values (weeklyTssTarget, weeklyTssMin, weeklyTssMax,
+maxThresholdSessions, maxVo2Sessions, maxNeuromuscularSessions, maxDurabilityBlocks,
+maxStrengthSessions) are computed server-side and provided to you in weeklyStressBudget.
+Copy them verbatim into your output weeklyStressBudget.  Do NOT invent, adjust, or
+round these numbers.  Your only job is to decide WHICH sessions to place and WHERE.
+
 Rules (enforced by the validator — violations will cause a retry):
 1. Only schedule sessions on the athlete's available days.
 2. No back-to-back threshold/vo2max/neuromuscular sessions.
-3. Respect the weeklyStressBudget caps exactly (maxThresholdSessions, maxVo2Sessions, etc.).
-4. Total planned TSS must stay within weeklyTssMin … weeklyTssMax.
+3. Do not exceed the session-type caps in weeklyStressBudget.
+4. Sum of slot targetTss must stay within weeklyTssMin … weeklyTssMax.
 5. phase must match the plan phase provided.
 6. Every slot must have: day (0=Mon…6=Sun), plannedDate (YYYY-MM-DD), slotType, purpose,
    priority, durationMinutes (>=15), targetTss (>=0), indoorOutdoor, rationaleShort.
@@ -363,18 +370,27 @@ Deno.serve(async (req) => {
     );
   }
 
-  // --- Overwrite budget-critical fields with server-computed values ---
-  // The LLM is responsible only for slot placement and rationale text.
-  // weeklyTssTarget / weeklyTssMin / weeklyTssMax must always come from
-  // buildWeeklyStressBudget(), never from the LLM output, to prevent run-to-run
-  // variance and ensure the deterministic progression model is honoured.
+  // --- Overwrite ALL budget-critical fields with server-computed values ---
+  // The LLM is responsible only for slot placement, within-budget session
+  // distribution, and rationale text.  ALL numeric budget limits must come
+  // from buildWeeklyStressBudget(), never from LLM output.  This prevents:
+  //   • run-to-run variance in weeklyTssTarget (LLM choosing its own target)
+  //   • session-cap inflation (LLM adding extra threshold/VO2 sessions)
+  //   • budget inversion bugs (LLM setting min > max)
   if (skeleton && typeof skeleton === "object") {
     const sk = skeleton as Record<string, unknown>;
     if (sk.weeklyStressBudget && typeof sk.weeklyStressBudget === "object") {
       const b = sk.weeklyStressBudget as Record<string, unknown>;
-      b.weeklyTssTarget = budget.weeklyTssTarget;
-      b.weeklyTssMin    = budget.weeklyTssMin;
-      b.weeklyTssMax    = budget.weeklyTssMax;
+      // TSS range — deterministic from progression model
+      b.weeklyTssTarget          = budget.weeklyTssTarget;
+      b.weeklyTssMin             = budget.weeklyTssMin;
+      b.weeklyTssMax             = budget.weeklyTssMax;
+      // Session-type caps — deterministic from phase / recovery / reentry signals
+      b.maxThresholdSessions     = budget.maxThresholdSessions;
+      b.maxVo2Sessions           = budget.maxVo2Sessions;
+      b.maxNeuromuscularSessions = budget.maxNeuromuscularSessions;
+      b.maxDurabilityBlocks      = budget.maxDurabilityBlocks;
+      b.maxStrengthSessions      = budget.maxStrengthSessions;
     }
   }
 
