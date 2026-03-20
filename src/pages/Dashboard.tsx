@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { useIntervalsData } from "@/hooks/useIntervalsData";
 import { useNavigate } from "react-router-dom";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, startOfWeek } from "date-fns";
 import { de } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -88,6 +88,22 @@ export default function Dashboard() {
   const [debugJson, setDebugJson] = useState<string | null>(null);
   const [debugLoading, setDebugLoading] = useState(false);
 
+  /** Formats a Supabase FunctionsError into a readable debug string. */
+  async function formatFnError(e: any): Promise<string> {
+    let detail = `[${e.name ?? "Error"}] ${e.message}`;
+    if (e.context instanceof Response) {
+      // FunctionsHttpError — read HTTP status + body
+      try {
+        const body = await e.context.text();
+        detail += `\nHTTP ${e.context.status} ${e.context.statusText}\n${body}`;
+      } catch { /* response already consumed */ }
+    } else if (e.context?.message) {
+      // FunctionsFetchError — underlying fetch/network error
+      detail += `\nCause: ${e.context.message}`;
+    }
+    return detail;
+  }
+
   async function handleTestContext() {
     setDebugLoading(true);
     setDebugJson(null);
@@ -97,11 +113,16 @@ export default function Dashboard() {
       const { data, error } = await supabase.functions.invoke("compute-athlete-context", {
         body: {},
       });
-      if (error) throw error;
+      if (error) {
+        console.error("compute-athlete-context error:", error);
+        setDebugJson(`Error:\n${await formatFnError(error)}`);
+        return;
+      }
       console.log("compute-athlete-context response:", data);
       setDebugJson(JSON.stringify(data, null, 2));
     } catch (e: any) {
-      setDebugJson(`Error: ${e.message}`);
+      console.error("compute-athlete-context unexpected error:", e);
+      setDebugJson(`Unexpected error:\n${e.message}`);
     } finally {
       setDebugLoading(false);
     }
@@ -112,15 +133,22 @@ export default function Dashboard() {
     setDebugJson(null);
     setDebugModalTitle("generate-week-skeleton Response");
     setDebugModalOpen(true);
+    // Use current week's Monday so the date always falls within an active plan horizon
+    const weekStartDate = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
     try {
       const { data, error } = await supabase.functions.invoke("generate-week-skeleton", {
-        body: { weekStartDate: "2026-03-23" },
+        body: { weekStartDate },
       });
-      if (error) throw error;
+      if (error) {
+        console.error("generate-week-skeleton error:", error);
+        setDebugJson(`Error:\n${await formatFnError(error)}`);
+        return;
+      }
       console.log("generate-week-skeleton response:", data);
       setDebugJson(JSON.stringify(data, null, 2));
     } catch (e: any) {
-      setDebugJson(`Error: ${e.message}`);
+      console.error("generate-week-skeleton unexpected error:", e);
+      setDebugJson(`Unexpected error:\n${e.message}`);
     } finally {
       setDebugLoading(false);
     }
