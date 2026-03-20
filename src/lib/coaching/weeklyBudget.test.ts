@@ -133,6 +133,31 @@ describe('computeEffectiveWeeklyLoad', () => {
     expect(result).toBe(280);
   });
 
+  it('zero-TSS week treated as missing for normal specialWeekType', () => {
+    // Replicates the reported athlete state:
+    // recentWeeklyTss=[0,209,388,173], CTL=35, specialWeekType='normal'
+    // Without fix: weeks=[0,209,388,173] → (0*4+209*3+388*2+173*1)/10 = 158
+    // With fix:    weeks[0]=0 → CTL*7=245 → [245,209,388,173]
+    //              effectiveLoad = (245*4+209*3+388*2+173*1)/10
+    //                           = (980+627+776+173)/10 = 2556/10 = 256
+    const result = computeEffectiveWeeklyLoad([0, 209, 388, 173], 'normal', {}, 35);
+    expect(result).toBe(256);
+    // Confirm it is NOT the collapsed 158 value
+    expect(result).toBeGreaterThan(200);
+  });
+
+  it('zero-TSS week is kept as-is for true_rest specialWeekType', () => {
+    // true_rest explicitly declares the week was zero load — honour it
+    // weeks=[0,209,388,173] → (0*4+209*3+388*2+173*1)/10 = 158
+    const result = computeEffectiveWeeklyLoad([0, 209, 388, 173], 'true_rest', {}, 35);
+    expect(result).toBe(158);
+  });
+
+  it('zero-TSS week is kept as-is for illness specialWeekType', () => {
+    const result = computeEffectiveWeeklyLoad([0, 209, 388, 173], 'illness', {}, 35);
+    expect(result).toBe(158);
+  });
+
   it('active_vacation: uses estimated vacation TSS instead of near-zero tracked', () => {
     // Most-recent week = 30 TSS (missing uploads), but athlete was actually active
     // estimatedTss = 400 → should use max(30, 400) = 400 for most-recent slot
@@ -156,6 +181,34 @@ describe('computeEffectiveWeeklyLoad', () => {
     // weeks[0] = max(10, 442) = 442
     // (442*4 + 300*3 + 280*2 + 250*1)/10 = (1768+900+560+250)/10 = 347.8 → 348
     expect(result).toBeGreaterThan(340);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 1b. buildWeeklyStressBudget — zero-TSS anchoring fix (regression guard)
+// ---------------------------------------------------------------------------
+describe('buildWeeklyStressBudget — zero-TSS most-recent week regression', () => {
+  it('replicates reported athlete state: [0,209,388,173] does NOT produce target=158', () => {
+    // Before fix: effectiveLoad collapsed to 158 because zero got weight 4.
+    // After fix:  zero → CTL*7 fallback, effectiveLoad = 256, base target = 256.
+    const ctx = makeBaseWeekCtx();
+    const state = makeAthleteState({
+      ctl: 35,
+      hoursAvailable: 10,
+      recentWeeklyTss: [0, 209, 388, 173, 340, 314, 205, 269],
+      specialWeekType: 'normal',
+    });
+    const budget = buildWeeklyStressBudget(ctx, MOCK_CONSTITUTION as any, state);
+
+    // effectiveLoad = (35*7*4 + 209*3 + 388*2 + 173*1)/10
+    //              = (980 + 627 + 776 + 173)/10 = 256
+    // base targetFactor = 1.00 → weeklyTssTarget = 256
+    expect(budget.weeklyTssTarget).toBe(256);
+    expect(budget.weeklyTssTarget).not.toBe(158);
+
+    // min/max should also reflect the corrected baseline
+    expect(budget.weeklyTssMin).toBe(Math.round(256 * 0.88));  // 225
+    expect(budget.weeklyTssMax).toBe(Math.round(256 * 1.10));  // 282
   });
 });
 

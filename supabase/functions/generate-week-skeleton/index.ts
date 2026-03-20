@@ -363,6 +363,21 @@ Deno.serve(async (req) => {
     );
   }
 
+  // --- Overwrite budget-critical fields with server-computed values ---
+  // The LLM is responsible only for slot placement and rationale text.
+  // weeklyTssTarget / weeklyTssMin / weeklyTssMax must always come from
+  // buildWeeklyStressBudget(), never from the LLM output, to prevent run-to-run
+  // variance and ensure the deterministic progression model is honoured.
+  if (skeleton && typeof skeleton === "object") {
+    const sk = skeleton as Record<string, unknown>;
+    if (sk.weeklyStressBudget && typeof sk.weeklyStressBudget === "object") {
+      const b = sk.weeklyStressBudget as Record<string, unknown>;
+      b.weeklyTssTarget = budget.weeklyTssTarget;
+      b.weeklyTssMin    = budget.weeklyTssMin;
+      b.weeklyTssMax    = budget.weeklyTssMax;
+    }
+  }
+
   // --- Return result ---
   return jsonResponse({
     debug: { planningMode: "llm", planningImplementation: "weekly-planning-agent-v1" },

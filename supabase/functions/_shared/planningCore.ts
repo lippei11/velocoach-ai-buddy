@@ -654,10 +654,22 @@ export function computeEffectiveWeeklyLoad(
   // Weights for the four most recent weeks (most-recent = highest weight)
   const WEIGHTS = [4, 3, 2, 1];
 
-  // Build working array: up to 4 recent weeks, padded with CTL-based fallback
+  // Build working array: up to 4 recent weeks, padded with CTL-based fallback.
+  //
+  // A zero-TSS completed week without an explicit rest/illness flag is almost
+  // always a data gap — activities that week had null TSS, or the athlete skipped
+  // without flagging it.  Letting a 0 sit in the highest-weight slot (weight 4)
+  // collapses the entire baseline (e.g. [0,209,388,173] → effectiveLoad=158 instead
+  // of the true ~256).  Treat it as missing and fall back to the CTL-based estimate,
+  // which is a more honest "unknown" signal.
+  //
+  // Exception: true_rest and illness are explicit declarations that zero IS the
+  // intended load for that week — honour them.
+  const zeroIsValid = specialWeekType === "true_rest" || specialWeekType === "illness";
   const weeks: number[] = [];
   for (let i = 0; i < 4; i++) {
-    weeks.push(recentWeeklyTss[i] ?? ctl * 7);
+    const v = recentWeeklyTss[i];
+    weeks.push(v != null && (v > 0 || zeroIsValid) ? v : ctl * 7);
   }
 
   // Active-vacation adjustment: replace the most-recent entry when we suspect
