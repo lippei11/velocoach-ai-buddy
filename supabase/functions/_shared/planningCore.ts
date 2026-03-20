@@ -42,6 +42,27 @@ export type SessionPurpose =
   | "sprint"
   | "strength";
 
+/**
+ * Character of the athlete's most recent week.
+ * active_vacation: athlete stayed active but uploads are missing/low —
+ *   do NOT treat as detraining; suppress over-conservative reentry logic.
+ * illness: most conservative return-to-training modifier.
+ */
+export type SpecialWeekType =
+  | "normal"
+  | "true_rest"
+  | "active_vacation"
+  | "illness"
+  | "travel";
+
+export type LoadCompleteness = "complete" | "partial" | "unknown";
+
+export interface EstimatedUntrackedLoad {
+  estimatedTss?: number;
+  durationHours?: number;
+  perceivedLoad?: "low" | "moderate" | "high";
+}
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -139,6 +160,49 @@ export const PHASE_LOAD: Record<
   build: { weeklyLoadFactorRange: [6.5, 8.0], maxQualitySessions: 2, longRideTssRatioPct: [35, 45] },
   peak:  { weeklyLoadFactorRange: [5.0, 6.0], maxQualitySessions: 2, longRideTssRatioPct: [32, 40] },
   taper: { weeklyLoadFactorRange: [2.5, 4.0], maxQualitySessions: 1, longRideTssRatioPct: [25, 35] },
+};
+
+/**
+ * Phase-relative progression factors applied to the recent effective weekly load.
+ * These are multipliers ON TOP of the effective load baseline, NOT on CTL.
+ *
+ * base:  steady aerobic build — hold or slightly increase load
+ * build: event-specific block — 5% progression from baseline
+ * peak:  sharpen / reduce volume — slight reduction
+ * taper: freshness — significant reduction
+ *
+ * The deload multiplier from DeloadStrategy.tssMultiplier is applied on top of these
+ * when isDeloadWeek === true.
+ */
+const PHASE_PROGRESSION: Record<Phase, { targetFactor: number; minFactor: number; maxFactor: number }> = {
+  base:  { targetFactor: 1.00, minFactor: 0.88, maxFactor: 1.10 },
+  build: { targetFactor: 1.05, minFactor: 0.93, maxFactor: 1.15 },
+  peak:  { targetFactor: 0.92, minFactor: 0.80, maxFactor: 1.02 },
+  taper: { targetFactor: 0.55, minFactor: 0.43, maxFactor: 0.65 },
+};
+
+/**
+ * Per-context multipliers applied when special week context indicates a
+ * non-normal recent period.  These scale the TSS target for the UPCOMING
+ * week based on what the athlete experienced recently.
+ *
+ * active_vacation — do NOT assume full detraining.  Athlete stayed active;
+ *   tracked TSS may be near zero from lack of uploads, not from detraining.
+ *   Suppress reentry caution (suppressReentry: true).
+ *
+ * illness — most conservative return-to-training handling.
+ * true_rest — conservative, but less so than illness.
+ * travel — neutral to mildly conservative.
+ */
+const SPECIAL_WEEK_MODIFIERS: Record<
+  SpecialWeekType,
+  { targetMult: number; minMult: number; maxMult: number; suppressReentry: boolean }
+> = {
+  normal:          { targetMult: 1.00, minMult: 1.00, maxMult: 1.00, suppressReentry: false },
+  active_vacation: { targetMult: 0.90, minMult: 0.80, maxMult: 1.00, suppressReentry: true  },
+  travel:          { targetMult: 0.88, minMult: 0.78, maxMult: 0.98, suppressReentry: false },
+  true_rest:       { targetMult: 0.75, minMult: 0.65, maxMult: 0.85, suppressReentry: false },
+  illness:         { targetMult: 0.60, minMult: 0.50, maxMult: 0.70, suppressReentry: false },
 };
 
 const BUILD_SESSIONS: Record<EventDemandProfile, SessionPurpose[]> = {
@@ -569,10 +633,68 @@ export function shouldActivateAdaptiveDeload(
 // =============================================================================
 
 /**
+ * Computes the effective weekly load baseline from recent weekly TSS history
+ * and any estimated untracked load.
+ *
+ * Uses an exponentially-weighted average (weights [4,3,2,1] for last 4 weeks,
+ * most-recent first) so the most recent completed weeks dominate the estimate.
+ *
+ * active_vacation special handling: when the most-recent week is flagged as
+ * active_vacation the tracked TSS may be near zero from missing uploads, not
+ * from actual detraining.  In that case we estimate the vacation load as
+ * perceivedLoad × durationHours × ~65 TSS/h and blend it into the average
+ * rather than letting a near-zero entry anchor the baseline too low.
+ */
+export function computeEffectiveWeeklyLoad(
+  recentWeeklyTss: number[],                  // most-recent first, up to 8 weeks
+  specialWeekType: SpecialWeekType = "normal",
+  estimatedUntrackedLoad: EstimatedUntrackedLoad = {},
+  ctl: number = 40,
+): number {
+  // Weights for the four most recent weeks (most-recent = highest weight)
+  const WEIGHTS = [4, 3, 2, 1];
+
+  // Build working array: up to 4 recent weeks, padded with CTL-based fallback
+  const weeks: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    weeks.push(recentWeeklyTss[i] ?? ctl * 7);
+  }
+
+  // Active-vacation adjustment: replace the most-recent entry when we suspect
+  // uploads are missing but the athlete was still active.
+  if (specialWeekType === "active_vacation") {
+    let estimatedVacationTss: number;
+    if (estimatedUntrackedLoad.estimatedTss != null) {
+      estimatedVacationTss = estimatedUntrackedLoad.estimatedTss;
+    } else {
+      const durationHours = estimatedUntrackedLoad.durationHours ?? 6;
+      const perceivedLoadMap: Record<string, number> = { low: 0.6, moderate: 0.85, high: 1.0 };
+      const loadFactor = perceivedLoadMap[estimatedUntrackedLoad.perceivedLoad ?? "moderate"] ?? 0.85;
+      estimatedVacationTss = Math.round(durationHours * 65 * loadFactor);
+    }
+    // Use the higher of the tracked or estimated vacation load
+    weeks[0] = Math.max(weeks[0], estimatedVacationTss);
+  }
+
+  // Weighted average
+  const totalWeight = WEIGHTS.reduce((s, w) => s + w, 0);
+  const weighted = weeks.reduce((sum, tss, i) => sum + tss * WEIGHTS[i], 0);
+  return Math.round(weighted / totalWeight);
+}
+
+/**
  * Computes the weekly stress budget for a given week.
  * This is the authoritative source of session-type caps and TSS targets.
  * The returned WeeklyStressBudget has planned* fields initialised to 0 —
  * the Planning Agent fills those in as it assigns sessions.
+ *
+ * TSS targeting model (progression-based, NOT CTL-driven):
+ *   1. effectiveLoad  = weighted average of recent weekly TSS (+ untracked estimate)
+ *   2. rawTarget      = effectiveLoad × PHASE_PROGRESSION[phase].targetFactor
+ *   3. Apply special-week modifier (illness, vacation, etc.)
+ *   4. Apply deload multiplier if isDeloadWeek
+ *   5. Apply hours cap (75 TSS/h hard ceiling)
+ *   6. Soft CTL guardrail: target ≤ CTL × 12 (prevents physically implausible jumps)
  */
 export function buildWeeklyStressBudget(
   ctx: WeekContext,
@@ -580,21 +702,52 @@ export function buildWeeklyStressBudget(
   athleteState: any
 ): any {
   const { phase, isDeloadWeek } = ctx;
-  const ctl = athleteState.recentLoad.ctl ?? 40;
-  const hoursAvailable = athleteState.weeklyContext.hoursAvailable;
+  const ctl: number = athleteState.recentLoad.ctl ?? 40;
+  const hoursAvailable: number = athleteState.weeklyContext.hoursAvailable;
 
-  // TSS target = CTL × load factor (midpoint of phase range)
-  const loadRange = PHASE_LOAD[phase.phase].weeklyLoadFactorRange;
-  const loadMid = (loadRange[0] + loadRange[1]) / 2;
+  // --- Context from weeklyContext (new fields, gracefully defaulted) ---
+  const specialWeekType: SpecialWeekType =
+    (athleteState.weeklyContext.specialWeekType as SpecialWeekType) ?? "normal";
+  const recentWeeklyTss: number[] = athleteState.weeklyContext.recentWeeklyTss ?? [];
+  const estimatedUntrackedLoad: EstimatedUntrackedLoad =
+    athleteState.weeklyContext.estimatedUntrackedLoad ?? {};
+
+  // Step 1: effective load baseline
+  const effectiveLoad = computeEffectiveWeeklyLoad(
+    recentWeeklyTss,
+    specialWeekType,
+    estimatedUntrackedLoad,
+    ctl,
+  );
+
+  // Step 2: phase progression factors applied to effective load (not to CTL)
+  const prog = PHASE_PROGRESSION[phase.phase];
   const deloadMultiplier = isDeloadWeek ? phase.deloadStrategy.tssMultiplier : 1.0;
 
-  let weeklyTssTarget = Math.round(ctl * loadMid * deloadMultiplier);
-  // Cap to available hours (approx 75 TSS/hour hard ceiling)
-  const hoursCap = Math.round(hoursAvailable * 75);
-  weeklyTssTarget = Math.min(weeklyTssTarget, hoursCap);
+  let rawTarget = effectiveLoad * prog.targetFactor;
+  let rawMin    = effectiveLoad * prog.minFactor;
+  let rawMax    = effectiveLoad * prog.maxFactor;
 
-  const weeklyTssMin = Math.round(ctl * loadRange[0] * deloadMultiplier);
-  const weeklyTssMax = Math.min(Math.round(ctl * loadRange[1] * deloadMultiplier), hoursCap);
+  // Step 3: special-week modifier
+  const mod = SPECIAL_WEEK_MODIFIERS[specialWeekType];
+  rawTarget *= mod.targetMult;
+  rawMin    *= mod.minMult;
+  rawMax    *= mod.maxMult;
+
+  // Step 4: deload multiplier
+  rawTarget *= deloadMultiplier;
+  rawMin    *= deloadMultiplier;
+  rawMax    *= deloadMultiplier;
+
+  // Step 5: hours cap (75 TSS/h hard ceiling)
+  const hoursCap = Math.round(hoursAvailable * 75);
+
+  // Step 6: soft CTL guardrail — prevent physically implausible targets
+  const ctlGuardrail = ctl * 12;
+
+  let weeklyTssTarget = Math.min(Math.round(rawTarget), hoursCap, ctlGuardrail);
+  const weeklyTssMin  = Math.min(Math.round(rawMin),    hoursCap);
+  const weeklyTssMax  = Math.min(Math.round(rawMax),    hoursCap, ctlGuardrail);
 
   // Session caps from constitution defaults
   const defaults = constitution.stress_budget_defaults;
@@ -622,7 +775,9 @@ export function buildWeeklyStressBudget(
   }
 
   // Re-entry context: conservative caps
-  if (athleteState.reentryContext !== "none") {
+  // active_vacation suppressReentry=true: athlete was active; do NOT apply reentry caution
+  const suppressReentry = mod.suppressReentry;
+  if (!suppressReentry && athleteState.reentryContext !== "none") {
     maxThresholdSessions = Math.min(1, maxThresholdSessions);
     maxVo2Sessions = 0;
   }
