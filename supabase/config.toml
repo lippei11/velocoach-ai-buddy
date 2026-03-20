@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.ai-coach]
 verify_jwt = false
+
+[functions.dexcom-sync]
+verify_jwt = false
