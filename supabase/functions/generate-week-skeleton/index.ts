@@ -153,12 +153,44 @@ function buildUserPrompt(
   weekCtx: unknown,
   budget: unknown
 ): string {
+  const wc = (athleteState as Record<string, unknown>)?.weeklyContext as Record<string, unknown> ?? {};
+  const specialWeekType = (wc.specialWeekType as string) ?? "normal";
+  const loadCompleteness = (wc.loadCompleteness as string) ?? "unknown";
+  const estimatedUntrackedLoad = wc.estimatedUntrackedLoad ?? null;
+  const recentWeeklyTss = (wc.recentWeeklyTss as number[] | undefined) ?? [];
+  const perf = (athleteState as Record<string, unknown>)?.performance as Record<string, unknown> ?? {};
+  const recentPeakWeeklyTss = perf.recentPeakWeeklyTss as number | undefined;
+
+  // Effective load baseline (simple average of last 4 weeks for LLM context)
+  const effectiveLoadBaseline = recentWeeklyTss.length > 0
+    ? Math.round(recentWeeklyTss.slice(0, 4).reduce((s, v, i, arr) => s + v / arr.length, 0))
+    : null;
+
+  // Coach note for active vacation: do not treat near-zero tracked TSS as detraining
+  const coachingContext = specialWeekType === "active_vacation"
+    ? "ACTIVE_VACATION: athlete was away but stayed active. Tracked TSS may be near zero due to missing uploads, NOT detraining. Do NOT apply conservative re-entry logic. Plan next week at normal progression relative to the effectiveLoadBaseline."
+    : specialWeekType === "illness"
+    ? "ILLNESS_RETURN: athlete is returning from illness. Apply conservative targets. Prioritise recovery, reduce intensity."
+    : specialWeekType === "true_rest"
+    ? "TRUE_REST: athlete took a deliberate rest week. Return conservatively — less so than illness."
+    : specialWeekType === "travel"
+    ? "TRAVEL: athlete's week was disrupted by travel. Minor conservative adjustment, nearly normal progression."
+    : null;
+
   return JSON.stringify({
     instruction: "Generate a WeekSkeleton JSON for the week described below. Respond ONLY with the JSON object.",
     weekStartDate,
     weekContext: weekCtx,
     weeklyStressBudget: budget,
     athleteState,
+    loadContext: {
+      specialWeekType,
+      loadCompleteness,
+      ...(estimatedUntrackedLoad ? { estimatedUntrackedLoad } : {}),
+      ...(effectiveLoadBaseline != null ? { effectiveLoadBaseline } : {}),
+      ...(recentPeakWeeklyTss != null ? { recentPeakWeeklyTss } : {}),
+      ...(coachingContext ? { coachingContext } : {}),
+    },
     planningAgentVersion: "1.0",
   });
 }

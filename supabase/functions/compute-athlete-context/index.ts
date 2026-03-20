@@ -102,6 +102,19 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
+  // Optional body params for special-week context
+  let specialWeekType: string = "normal";
+  let loadCompleteness: string = "unknown";
+  let estimatedUntrackedLoad: { estimatedTss?: number; durationHours?: number; perceivedLoad?: string } = {};
+  try {
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      if (body.specialWeekType) specialWeekType = body.specialWeekType;
+      if (body.loadCompleteness) loadCompleteness = body.loadCompleteness;
+      if (body.estimatedUntrackedLoad) estimatedUntrackedLoad = body.estimatedUntrackedLoad;
+    }
+  } catch (_) { /* non-fatal */ }
+
   const { supabaseAdmin, supabaseUser } = getSupabaseClients(authHeader);
   const user = await getAuthenticatedUser(supabaseUser);
   if (!user) return jsonResponse({ error: "Unauthorized" }, 401);
@@ -254,6 +267,8 @@ Deno.serve(async (req) => {
   let mostRecentActivityDate: Date | null = null;
   let activityCount = 0;
   let weeksOfHistoryFraction = 0;
+  let recentWeeklyTss: number[] = [];      // most-recent first, up to 8 weeks
+  let recentPeakWeeklyTss: number | undefined; // max weekly TSS in last 12 weeks
 
   try {
     const { data: activities } = await supabaseAdmin
@@ -267,17 +282,42 @@ Deno.serve(async (req) => {
       activityCount = activities.length;
       mostRecentActivityDate = new Date(activities[0].start_date);
 
+      // Group activities by ISO week (Monday-keyed)
+      const weekTssMap: Map<string, number> = new Map();
+      for (const a of activities) {
+        const d = new Date(a.start_date);
+        const day = d.getUTCDay();
+        const monday = new Date(d);
+        monday.setUTCDate(d.getUTCDate() - ((day + 6) % 7));
+        const weekKey = monday.toISOString().slice(0, 10);
+        weekTssMap.set(weekKey, (weekTssMap.get(weekKey) ?? 0) + (a.tss ?? 0));
+      }
+
+      // Sort weeks descending (most recent first)
+      const sortedWeeks = Array.from(weekTssMap.entries())
+        .sort((a, b) => b[0].localeCompare(a[0]));
+
       // Weeks of history fraction (capped at 8 weeks = 1.0)
-      const uniqueWeeks = new Set(
-        activities.map((a) => {
-          const d = new Date(a.start_date);
-          const day = d.getUTCDay();
-          const monday = new Date(d);
-          monday.setUTCDate(d.getUTCDate() - ((day + 6) % 7));
-          return monday.toISOString().slice(0, 10);
-        })
-      );
+      const uniqueWeeks = new Set(sortedWeeks.map(([k]) => k));
       weeksOfHistoryFraction = Math.min(uniqueWeeks.size / 8.0, 1.0);
+
+      // recentWeeklyTss: last 8 completed weeks (skip the current in-progress week)
+      const nowWeekMonday = (() => {
+        const d = new Date();
+        const day = d.getUTCDay();
+        const monday = new Date(d);
+        monday.setUTCDate(d.getUTCDate() - ((day + 6) % 7));
+        return monday.toISOString().slice(0, 10);
+      })();
+      const completedWeeks = sortedWeeks.filter(([k]) => k < nowWeekMonday);
+      recentWeeklyTss = completedWeeks.slice(0, 8).map(([, tss]) => tss);
+
+      // recentPeakWeeklyTss: max TSS across last 12 weeks
+      const cutoff12w = new Date(Date.now() - 84 * 86400000).toISOString().slice(0, 10);
+      const last12 = sortedWeeks.filter(([k]) => k >= cutoff12w && k < nowWeekMonday);
+      if (last12.length > 0) {
+        recentPeakWeeklyTss = Math.max(...last12.map(([, tss]) => tss));
+      }
 
       // Durability score: from long rides (>= 3h) with normalized_power
       const longRides = activities.filter(
@@ -346,7 +386,10 @@ Deno.serve(async (req) => {
     ? (now.getTime() - mostRecentActivityDate.getTime()) / 86400000
     : Infinity;
 
-  if (daysSinceLastActivity > constitution.re_entry_gap_days) {
+  // active_vacation: athlete was active but uploads may be missing — suppress reentry caution
+  const suppressReentryForVacation = specialWeekType === "active_vacation";
+
+  if (!suppressReentryForVacation && daysSinceLastActivity > constitution.re_entry_gap_days) {
     currentPhase = "base";
     reentryContext = "after_inconsistency";
     planningNotes.push("REENTRY_AFTER_GAP");
@@ -414,7 +457,10 @@ Deno.serve(async (req) => {
   const budgetDefaults = constitution.stress_budget_defaults;
   const typologyMap = constitution.typology_defaults as Record<string, string>;
   const typology = typologyMap[eventDemandProfile] ?? "PYRAMIDAL";
-  const weeklyTssTarget = ctl != null ? ctl * 7 : hoursPerWeek * 50;
+  // Use recent weekly TSS baseline if available; CTL×7 as fallback only
+  const weeklyTssTarget = recentWeeklyTss.length > 0
+    ? Math.round(recentWeeklyTss.slice(0, 4).reduce((s, v, i, arr) => s + v / arr.length, 0))
+    : (ctl != null ? ctl * 7 : hoursPerWeek * 50);
 
   const weeklyStressBudget = {
     weeklyTssTarget,
@@ -475,6 +521,10 @@ Deno.serve(async (req) => {
       weekStartDate,
       hoursAvailable: hoursPerWeek,
       availableDays,
+      specialWeekType,
+      loadCompleteness,
+      ...(Object.keys(estimatedUntrackedLoad).length > 0 ? { estimatedUntrackedLoad } : {}),
+      ...(recentWeeklyTss.length > 0 ? { recentWeeklyTss } : {}),
     },
     userOverrides: [],
 
@@ -494,6 +544,7 @@ Deno.serve(async (req) => {
       ...(ftpStatus != null ? { ftpStatus } : {}),
       ...(durabilityScore != null ? { durabilityScore } : {}),
       recentExecutionQuality,
+      ...(recentPeakWeeklyTss != null ? { recentPeakWeeklyTss } : {}),
     },
     recovery: {
       readinessLevel,

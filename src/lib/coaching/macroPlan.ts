@@ -23,6 +23,7 @@ export {
   getWeekContext,
   shouldActivateAdaptiveDeload,
   buildWeeklyStressBudget,
+  computeEffectiveWeeklyLoad,
   validateWeekSkeleton,
   PHASE_LOAD,
 } from './planningCore';
