@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings, Clock, TrendingUp, Bug } from "lucide-react";
+import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings, Clock, TrendingUp, Bug, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +15,11 @@ import { useNavigate } from "react-router-dom";
 import { format, formatDistanceToNow, startOfWeek } from "date-fns";
 import { de } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  WeeklyContextInputs,
+  defaultWeeklyContextValues,
+  type WeeklyContextValues,
+} from "@/components/plan/WeeklyContextInputs";
 
 function Sparkline({ data, color }: { data: { v: number }[]; color: string }) {
   if (data.length < 2) return null;
@@ -87,6 +92,7 @@ export default function Dashboard() {
   const [debugModalTitle, setDebugModalTitle] = useState("");
   const [debugJson, setDebugJson] = useState<string | null>(null);
   const [debugLoading, setDebugLoading] = useState(false);
+  const [weeklyCtx, setWeeklyCtx] = useState<WeeklyContextValues>(defaultWeeklyContextValues);
 
   /** Formats a Supabase FunctionsError into a readable debug string. */
   async function formatFnError(e: any): Promise<string> {
@@ -111,7 +117,13 @@ export default function Dashboard() {
     setDebugModalOpen(true);
     try {
       const { data, error } = await supabase.functions.invoke("compute-athlete-context", {
-        body: {},
+        body: {
+          specialWeekType: weeklyCtx.specialWeekType,
+          loadCompleteness: weeklyCtx.loadCompleteness,
+          ...(Object.keys(weeklyCtx.estimatedUntrackedLoad).length > 0
+            ? { estimatedUntrackedLoad: weeklyCtx.estimatedUntrackedLoad }
+            : {}),
+        },
       });
       if (error) {
         console.error("compute-athlete-context error:", error);
@@ -272,6 +284,22 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Weekly Planning Context */}
+      <Card className="border-dashed">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+            <CalendarDays className="h-4 w-4" />
+            Wochenkontext für Planung
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <WeeklyContextInputs value={weeklyCtx} onChange={setWeeklyCtx} />
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Kontext wird beim nächsten <strong>Test Context</strong>-Aufruf an den Planer übergeben.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
