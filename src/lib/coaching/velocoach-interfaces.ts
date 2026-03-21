@@ -87,6 +87,40 @@ export type ReentryContext =
   | "after_inconsistency"
   | "after_injury";  // Requires medical clearance confirmed by athlete
 
+/**
+ * Describes the character of the athlete's most recent week.
+ * Used by the planning model to adjust weekly TSS targeting conservatively
+ * for illness/rest, or to suppress over-conservative reentry logic for
+ * active vacation where fitness did NOT necessarily collapse.
+ */
+export type SpecialWeekType =
+  | "normal"           // Regular training week
+  | "true_rest"        // Deliberate full rest — conservative next-week targeting
+  | "active_vacation"  // Active holiday; tracked TSS low but athlete stayed active
+  | "illness"          // Sick week — most conservative return-to-training handling
+  | "travel";          // Travel week — neutral to mildly conservative
+
+/**
+ * Indicates how complete the training data is for the recent/current week.
+ * "partial" / "unknown" reduces certainty and moderates progression,
+ * but does NOT automatically force a full reentry response.
+ */
+export type LoadCompleteness =
+  | "complete"   // All training captured and uploaded
+  | "partial"    // Some activities missing or not uploaded
+  | "unknown";   // No data available — context unclear
+
+/**
+ * Athlete-supplied estimate of training load that wasn't uploaded/tracked.
+ * Used by the effective-load model when loadCompleteness = "partial"
+ * or specialWeekType = "active_vacation".
+ */
+export interface EstimatedUntrackedLoad {
+  estimatedTss?: number;                        // Direct TSS estimate if known
+  durationHours?: number;                       // Approximate training hours
+  perceivedLoad?: "low" | "moderate" | "high";  // Subjective effort level
+}
+
 export type ConstraintSeverity =
   | "hard"   // Non-negotiable — plan around it
   | "soft";  // Preferred — bend if necessary
@@ -198,6 +232,30 @@ export interface WeeklyContext {
   fixedSessions?: string[];    // e.g. ["sunday_group_ride"]
   travel?: boolean;
   notes?: string[];
+
+  // --- Effective-load planning context (3a) ---
+  /**
+   * Character of the most recent / current week.
+   * Drives special-week modifiers in buildWeeklyStressBudget.
+   * Defaults to "normal" when absent.
+   */
+  specialWeekType?: SpecialWeekType;
+  /**
+   * How complete is the recent training data?
+   * partial/unknown moderates progression without forcing full reentry.
+   */
+  loadCompleteness?: LoadCompleteness;
+  /**
+   * Athlete-supplied estimate of untracked activity.
+   * Used when loadCompleteness = "partial" or specialWeekType = "active_vacation".
+   */
+  estimatedUntrackedLoad?: EstimatedUntrackedLoad;
+  /**
+   * Recent completed weekly TSS, most-recent first, up to 8 weeks.
+   * Primary baseline for progression-based weekly TSS targeting.
+   * Populated by compute-athlete-context from the activities table.
+   */
+  recentWeeklyTss?: number[];
 }
 
 export interface UserOverride {
@@ -228,6 +286,14 @@ export interface PerformanceMetrics {
   powerHrDecouplingPct?: number;   // % HR drift vs. stable power in Z2 sessions
   longRideTolerance?: number;      // 0..1, recent long rides completed vs. planned
   recentExecutionQuality?: number; // 0..1, planned vs. actual TSS last 2 weeks
+  /**
+   * Maximum weekly TSS achieved in the last 12 weeks (from activities).
+   * Serves as a historical tolerance anchor: the athlete has demonstrably
+   * handled this load, so the planner should not be more conservative than
+   * this ceiling allows.  It is NOT the target driver — the primary baseline
+   * is recentWeeklyTss[] (recent effective load).  Populated by compute-athlete-context.
+   */
+  recentPeakWeeklyTss?: number;
 }
 
 export interface RecoverySignals {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings, Clock, TrendingUp, Bug } from "lucide-react";
+import { RefreshCw, Activity, Bike, Footprints, Dumbbell, Waves, AlertCircle, Settings, Clock, TrendingUp, Bug, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,9 +12,14 @@ import {
 } from "recharts";
 import { useIntervalsData } from "@/hooks/useIntervalsData";
 import { useNavigate } from "react-router-dom";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, startOfWeek } from "date-fns";
 import { de } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  WeeklyContextInputs,
+  defaultWeeklyContextValues,
+  type WeeklyContextValues,
+} from "@/components/plan/WeeklyContextInputs";
 
 function Sparkline({ data, color }: { data: { v: number }[]; color: string }) {
   if (data.length < 2) return null;
@@ -87,6 +92,25 @@ export default function Dashboard() {
   const [debugModalTitle, setDebugModalTitle] = useState("");
   const [debugJson, setDebugJson] = useState<string | null>(null);
   const [debugLoading, setDebugLoading] = useState(false);
+  const [weeklyCtx, setWeeklyCtx] = useState<WeeklyContextValues>(defaultWeeklyContextValues);
+  // Temporary: holds last successful weekSkeleton for build-workouts debug
+  const [lastWeekSkeleton, setLastWeekSkeleton] = useState<Record<string, unknown> | null>(null);
+
+  /** Formats a Supabase FunctionsError into a readable debug string. */
+  async function formatFnError(e: any): Promise<string> {
+    let detail = `[${e.name ?? "Error"}] ${e.message}`;
+    if (e.context instanceof Response) {
+      // FunctionsHttpError — read HTTP status + body
+      try {
+        const body = await e.context.text();
+        detail += `\nHTTP ${e.context.status} ${e.context.statusText}\n${body}`;
+      } catch { /* response already consumed */ }
+    } else if (e.context?.message) {
+      // FunctionsFetchError — underlying fetch/network error
+      detail += `\nCause: ${e.context.message}`;
+    }
+    return detail;
+  }
 
   async function handleTestContext() {
     setDebugLoading(true);
@@ -95,13 +119,24 @@ export default function Dashboard() {
     setDebugModalOpen(true);
     try {
       const { data, error } = await supabase.functions.invoke("compute-athlete-context", {
-        body: {},
+        body: {
+          specialWeekType: weeklyCtx.specialWeekType,
+          loadCompleteness: weeklyCtx.loadCompleteness,
+          ...(Object.keys(weeklyCtx.estimatedUntrackedLoad).length > 0
+            ? { estimatedUntrackedLoad: weeklyCtx.estimatedUntrackedLoad }
+            : {}),
+        },
       });
-      if (error) throw error;
+      if (error) {
+        console.error("compute-athlete-context error:", error);
+        setDebugJson(`Error:\n${await formatFnError(error)}`);
+        return;
+      }
       console.log("compute-athlete-context response:", data);
       setDebugJson(JSON.stringify(data, null, 2));
     } catch (e: any) {
-      setDebugJson(`Error: ${e.message}`);
+      console.error("compute-athlete-context unexpected error:", e);
+      setDebugJson(`Unexpected error:\n${e.message}`);
     } finally {
       setDebugLoading(false);
     }
@@ -112,15 +147,56 @@ export default function Dashboard() {
     setDebugJson(null);
     setDebugModalTitle("generate-week-skeleton Response");
     setDebugModalOpen(true);
+    // Use current week's Monday so the date always falls within an active plan horizon
+    const weekStartDate = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
     try {
       const { data, error } = await supabase.functions.invoke("generate-week-skeleton", {
-        body: { weekStartDate: "2026-03-23" },
+        body: { weekStartDate },
       });
-      if (error) throw error;
+      if (error) {
+        console.error("generate-week-skeleton error:", error);
+        setDebugJson(`Error:\n${await formatFnError(error)}`);
+        return;
+      }
       console.log("generate-week-skeleton response:", data);
       setDebugJson(JSON.stringify(data, null, 2));
+      if (data?.weekSkeleton) setLastWeekSkeleton(data.weekSkeleton);
     } catch (e: any) {
-      setDebugJson(`Error: ${e.message}`);
+      console.error("generate-week-skeleton unexpected error:", e);
+      setDebugJson(`Unexpected error:\n${e.message}`);
+    } finally {
+      setDebugLoading(false);
+    }
+  }
+
+  async function handleTestBuildWorkouts() {
+    if (!lastWeekSkeleton) return;
+    setDebugLoading(true);
+    setDebugJson(null);
+    setDebugModalTitle("build-workouts Response");
+    setDebugModalOpen(true);
+    const weekStartDate = lastWeekSkeleton.weekStartDate as string;
+    try {
+      const { data, error } = await supabase.functions.invoke("build-workouts", {
+        body: { weekSkeleton: lastWeekSkeleton, weekStartDate },
+      });
+      if (error) {
+        console.error("build-workouts error:", error);
+        const errText = await formatFnError(error);
+        setDebugJson(
+          `// === REQUEST: weekSkeleton ===\n${JSON.stringify(lastWeekSkeleton, null, 2)}\n\n// === ERROR ===\n${errText}`
+        );
+        return;
+      }
+      console.log("build-workouts response:", data);
+      setDebugJson(
+        `// === REQUEST: weekSkeleton ===\n${JSON.stringify(lastWeekSkeleton, null, 2)}\n\n// === RESPONSE: build-workouts ===\n${JSON.stringify(data, null, 2)}`
+      );
+    } catch (e: any) {
+      console.error("build-workouts unexpected error:", e);
+      setDebugJson(
+        `// === REQUEST: weekSkeleton ===\n${JSON.stringify(lastWeekSkeleton, null, 2)}\n\n// === UNEXPECTED ERROR ===\n${e.message}`
+      );
     } finally {
       setDebugLoading(false);
     }
@@ -229,7 +305,7 @@ export default function Dashboard() {
             <SyncStatusBadge lastSyncAt={lastSyncAt} />
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleTestContext} disabled={debugLoading}>
             <Bug className="h-4 w-4 mr-1" />
             Test Context
@@ -238,12 +314,32 @@ export default function Dashboard() {
             <Bug className="h-4 w-4 mr-1" />
             Test Week Skeleton
           </Button>
+          <Button variant="outline" size="sm" onClick={handleTestBuildWorkouts} disabled={debugLoading || !lastWeekSkeleton}>
+            <Bug className="h-4 w-4 mr-1" />
+            Test Build Workouts
+          </Button>
           <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Aktualisieren
           </Button>
         </div>
       </div>
+
+      {/* Weekly Planning Context */}
+      <Card className="border-dashed">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+            <CalendarDays className="h-4 w-4" />
+            Wochenkontext für Planung
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <WeeklyContextInputs value={weeklyCtx} onChange={setWeeklyCtx} />
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Kontext wird beim nächsten <strong>Test Context</strong>-Aufruf an den Planer übergeben.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
