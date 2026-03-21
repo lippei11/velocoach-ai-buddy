@@ -238,11 +238,80 @@ function buildUserPrompt(
 }
 
 // =============================================================================
-// Anthropic call
+// Model config
 // =============================================================================
 
-const PLANNING_MODEL = Deno.env.get("PLANNING_MODEL") ?? "claude-opus-4-6";
+const PLANNING_MODEL = Deno.env.get("PLANNING_MODEL") ?? "claude-sonnet-4-5-20251022";
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
+
+// =============================================================================
+// Cache helpers
+// =============================================================================
+
+/**
+ * Compute a short hex fingerprint of the planning inputs that affect output.
+ * Cache entries with a different fingerprint are considered stale.
+ *
+ * Inputs:
+ *   userId               — per-user isolation
+ *   weekStartDate        — which week
+ *   athleteStateComputedAt — changes whenever compute-athlete-context reruns;
+ *                           this is the primary staleness signal
+ *   planningModel        — model changes can alter slot allocation
+ */
+export async function computeInputFingerprint(
+  userId: string,
+  weekStartDate: string,
+  athleteStateComputedAt: string,
+  planningModel: string
+): Promise<string> {
+  const raw = [userId, weekStartDate, athleteStateComputedAt, planningModel].join(":");
+  const data = new TextEncoder().encode(raw);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 16);
+}
+
+async function lookupCachedSkeleton(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+  weekStartDate: string,
+  fingerprint: string
+): Promise<unknown | null> {
+  const { data, error } = await supabaseAdmin
+    .from("week_skeleton_cache")
+    .select("week_skeleton_json")
+    .eq("user_id", userId)
+    .eq("week_start_date", weekStartDate)
+    .eq("input_fingerprint", fingerprint)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.week_skeleton_json;
+}
+
+async function writeCachedSkeleton(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+  weekStartDate: string,
+  fingerprint: string,
+  athleteStateComputedAt: string,
+  weekSkeletonJson: unknown
+): Promise<void> {
+  await supabaseAdmin.from("week_skeleton_cache").upsert(
+    {
+      user_id: userId,
+      week_start_date: weekStartDate,
+      input_fingerprint: fingerprint,
+      athlete_state_computed_at: athleteStateComputedAt,
+      planning_model: PLANNING_MODEL,
+      week_skeleton_json: weekSkeletonJson,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,week_start_date" }
+  );
+}
 
 async function callPlanningLLM(
   systemPrompt: string,
@@ -339,6 +408,66 @@ Deno.serve(async (req) => {
   }
 
   const athleteState = stateRow.state_json as Record<string, unknown>;
+  const athleteStateComputedAt: string = stateRow.computed_at ?? "";
+
+  // --- Cache check ---
+  const fingerprint = await computeInputFingerprint(
+    user.id,
+    weekStartDate,
+    athleteStateComputedAt,
+    PLANNING_MODEL
+  );
+  const cached = await lookupCachedSkeleton(supabaseAdmin, user.id, weekStartDate, fingerprint);
+  if (cached) {
+    // Build deterministic context fields for the response (no LLM needed)
+    const planForCtx = generatePlanStructure({
+      eventDate: (athleteState.eventDate as string | null) ?? null,
+      todayDate: weekStartDate,
+      currentCtl: (athleteState.recentLoad as Record<string, unknown>)?.ctl as number | null ?? null,
+      eventDemandProfile: (athleteState.eventDemandProfile as string | null) ?? null,
+      hoursPerWeek:
+        ((athleteState.weeklyContext as Record<string, unknown>)?.hoursAvailable as number) ?? 8,
+      strengthSessionsPerWeek:
+        ((athleteState.preferences as Record<string, unknown>)?.strengthSessionsPerWeek as number | undefined),
+      constitutionVersion: constitution.version,
+    });
+    const weekCtxForCache = getWeekContext(planForCtx, weekStartDate);
+    return jsonResponse({
+      debug: {
+        planningMode: "cache",
+        planningImplementation: "weekly-planning-agent-v1",
+        cacheHit: true,
+        planningModel: PLANNING_MODEL,
+        inputFingerprint: fingerprint,
+      },
+      weekSkeleton: cached,
+      weekContext: weekCtxForCache
+        ? {
+            phase: weekCtxForCache.phase.phase,
+            weekNumberInPlan: weekCtxForCache.weekNumberInPlan,
+            weekNumberInPhase: weekCtxForCache.weekNumberInPhase,
+            isDeloadWeek: weekCtxForCache.isDeloadWeek,
+            isLastWeekOfPhase: weekCtxForCache.isLastWeekOfPhase,
+            isFirstWeekOfPhase: weekCtxForCache.isFirstWeekOfPhase,
+            weeksUntilEvent: weekCtxForCache.weeksUntilEvent,
+            keySessionTypes: weekCtxForCache.phase.keySessionTypes,
+          }
+        : null,
+      planSummary: {
+        macroStrategy: planForCtx.macroStrategy,
+        totalWeeks: planForCtx.totalWeeks,
+        planStartDate: planForCtx.planStartDate,
+        eventDate: planForCtx.eventDate,
+        constitutionVersion: planForCtx.constitutionVersion,
+        phases: planForCtx.phases.map((p) => ({
+          phase: p.phase,
+          weeks: p.weeks,
+          startDate: p.startDate,
+          endDate: p.endDate,
+        })),
+      },
+    });
+  }
 
   // --- Build plan structure from AthleteState ---
   const plan = generatePlanStructure({
@@ -453,9 +582,25 @@ Deno.serve(async (req) => {
     }
   }
 
+  // --- Persist valid skeleton to cache (fire-and-forget; errors are non-fatal) ---
+  writeCachedSkeleton(
+    supabaseAdmin,
+    user.id,
+    weekStartDate,
+    fingerprint,
+    athleteStateComputedAt,
+    skeleton
+  ).catch((e) => console.error("week_skeleton_cache write failed (non-fatal):", e));
+
   // --- Return result ---
   return jsonResponse({
-    debug: { planningMode: "llm", planningImplementation: "weekly-planning-agent-v1" },
+    debug: {
+      planningMode: "llm",
+      planningImplementation: "weekly-planning-agent-v1",
+      cacheHit: false,
+      planningModel: PLANNING_MODEL,
+      inputFingerprint: fingerprint,
+    },
     weekSkeleton: skeleton,
     validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
     weekContext: {
