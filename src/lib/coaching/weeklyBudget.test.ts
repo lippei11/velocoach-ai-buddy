@@ -19,6 +19,7 @@ import { format, addWeeks, parseISO } from 'date-fns';
 import {
   computeEffectiveWeeklyLoad,
   buildWeeklyStressBudget,
+  tallyPlannedSessions,
   generatePlanStructure,
   getWeekContext,
 } from './planningCore';
@@ -444,5 +445,96 @@ describe('server-side budget overwrite — deterministic after LLM override simu
     }
     // And it should not be the collapsed pre-fix value
     expect(first).toBe(256);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. tallyPlannedSessions — planned* fields match actual slots
+// ---------------------------------------------------------------------------
+describe('tallyPlannedSessions', () => {
+  it('counts threshold and sweet_spot slots as plannedThreshold', () => {
+    const slots = [
+      { purpose: 'threshold' },
+      { purpose: 'sweet_spot' },
+      { purpose: 'endurance' },
+    ];
+    const tally = tallyPlannedSessions(slots);
+    expect(tally.plannedThreshold).toBe(2);
+    expect(tally.plannedVo2).toBe(0);
+    expect(tally.plannedLongRide).toBe(false);
+  });
+
+  it('counts long_ride as plannedLongRide=true (boolean flag)', () => {
+    const slots = [
+      { purpose: 'long_ride' },
+      { purpose: 'endurance' },
+    ];
+    const tally = tallyPlannedSessions(slots);
+    expect(tally.plannedLongRide).toBe(true);
+    expect(tally.plannedThreshold).toBe(0);
+  });
+
+  it('multiple long_ride slots still produce plannedLongRide=true, not a count', () => {
+    const slots = [{ purpose: 'long_ride' }, { purpose: 'long_ride' }];
+    const tally = tallyPlannedSessions(slots);
+    expect(tally.plannedLongRide).toBe(true);
+  });
+
+  it('counts vo2max, sprint, back_to_back, strength correctly', () => {
+    const slots = [
+      { purpose: 'vo2max' },
+      { purpose: 'sprint' },
+      { purpose: 'back_to_back' },
+      { purpose: 'climb_simulation' },
+      { purpose: 'strength' },
+      { purpose: 'strength' },
+    ];
+    const tally = tallyPlannedSessions(slots);
+    expect(tally.plannedVo2).toBe(1);
+    expect(tally.plannedNeuromuscular).toBe(1);
+    expect(tally.plannedDurability).toBe(2);
+    expect(tally.plannedStrength).toBe(2);
+  });
+
+  it('typical week with threshold + long_ride matches observed failure case', () => {
+    // The reported problem: plannedThreshold=0, plannedLongRide=false even when
+    // slots clearly contain one threshold and one long_ride session.
+    const slots = [
+      { purpose: 'endurance' },
+      { purpose: 'threshold' },
+      { purpose: 'long_ride' },
+      { purpose: 'recovery' },
+    ];
+    const tally = tallyPlannedSessions(slots);
+    expect(tally.plannedThreshold).toBe(1);
+    expect(tally.plannedLongRide).toBe(true);
+    expect(tally.plannedVo2).toBe(0);
+    expect(tally.plannedDurability).toBe(0);
+    expect(tally.plannedStrength).toBe(0);
+  });
+
+  it('empty slot list produces all-zero tally', () => {
+    const tally = tallyPlannedSessions([]);
+    expect(tally.plannedThreshold).toBe(0);
+    expect(tally.plannedVo2).toBe(0);
+    expect(tally.plannedNeuromuscular).toBe(0);
+    expect(tally.plannedDurability).toBe(0);
+    expect(tally.plannedStrength).toBe(0);
+    expect(tally.plannedLongRide).toBe(false);
+  });
+
+  it('recovery and endurance slots do not increment any planned counter', () => {
+    const slots = [
+      { purpose: 'recovery' },
+      { purpose: 'endurance' },
+      { purpose: 'endurance' },
+    ];
+    const tally = tallyPlannedSessions(slots);
+    expect(tally.plannedThreshold).toBe(0);
+    expect(tally.plannedVo2).toBe(0);
+    expect(tally.plannedNeuromuscular).toBe(0);
+    expect(tally.plannedDurability).toBe(0);
+    expect(tally.plannedStrength).toBe(0);
+    expect(tally.plannedLongRide).toBe(false);
   });
 });

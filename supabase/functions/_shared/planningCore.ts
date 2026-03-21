@@ -834,6 +834,67 @@ export function buildWeeklyStressBudget(
 }
 
 // =============================================================================
+// PUBLIC API — SLOT TALLY
+// =============================================================================
+
+/**
+ * Counts the session-type totals from the final placed slots.
+ * Used by generate-week-skeleton to synchronise weeklyStressBudget.planned*
+ * fields with the actual returned slot list, replacing the LLM's self-reported
+ * (and often wrong) planned* values.
+ *
+ * Mapping:
+ *   plannedThreshold  ← "threshold" | "sweet_spot"
+ *   plannedVo2        ← "vo2max"
+ *   plannedNeuromuscular ← "sprint"
+ *   plannedDurability ← "back_to_back" | "climb_simulation"
+ *   plannedStrength   ← "strength"
+ *   plannedLongRide   ← any "long_ride" slot → boolean
+ */
+export function tallyPlannedSessions(slots: Array<{ purpose?: string }>): {
+  plannedThreshold: number;
+  plannedVo2: number;
+  plannedNeuromuscular: number;
+  plannedDurability: number;
+  plannedStrength: number;
+  plannedLongRide: boolean;
+} {
+  let plannedThreshold = 0;
+  let plannedVo2 = 0;
+  let plannedNeuromuscular = 0;
+  let plannedDurability = 0;
+  let plannedStrength = 0;
+  let plannedLongRide = false;
+
+  for (const slot of slots) {
+    switch (slot.purpose) {
+      case "threshold":
+      case "sweet_spot":
+        plannedThreshold++;
+        break;
+      case "vo2max":
+        plannedVo2++;
+        break;
+      case "sprint":
+        plannedNeuromuscular++;
+        break;
+      case "back_to_back":
+      case "climb_simulation":
+        plannedDurability++;
+        break;
+      case "strength":
+        plannedStrength++;
+        break;
+      case "long_ride":
+        plannedLongRide = true;
+        break;
+    }
+  }
+
+  return { plannedThreshold, plannedVo2, plannedNeuromuscular, plannedDurability, plannedStrength, plannedLongRide };
+}
+
+// =============================================================================
 // PUBLIC API — VALIDATION
 // =============================================================================
 

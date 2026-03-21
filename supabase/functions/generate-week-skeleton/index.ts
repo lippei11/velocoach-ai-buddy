@@ -5,6 +5,7 @@ import {
   generatePlanStructure,
   getWeekContext,
   buildWeeklyStressBudget,
+  tallyPlannedSessions,
   validateWeekSkeleton,
 } from "../_shared/planningCore.ts";
 
@@ -421,6 +422,9 @@ Deno.serve(async (req) => {
   //   • run-to-run variance in weeklyTssTarget (LLM choosing its own target)
   //   • session-cap inflation (LLM adding extra threshold/VO2 sessions)
   //   • budget inversion bugs (LLM setting min > max)
+  //
+  // planned* fields are counted from the final slot list, not taken from the
+  // LLM output (which is frequently stale or mismatched).
   if (skeleton && typeof skeleton === "object") {
     const sk = skeleton as Record<string, unknown>;
     if (sk.weeklyStressBudget && typeof sk.weeklyStressBudget === "object") {
@@ -435,6 +439,17 @@ Deno.serve(async (req) => {
       b.maxNeuromuscularSessions = budget.maxNeuromuscularSessions;
       b.maxDurabilityBlocks      = budget.maxDurabilityBlocks;
       b.maxStrengthSessions      = budget.maxStrengthSessions;
+      // planned* counters — derived from the actual returned slots
+      const slots = Array.isArray(sk.slots)
+        ? (sk.slots as Array<{ purpose?: string }>)
+        : [];
+      const tally = tallyPlannedSessions(slots);
+      b.plannedThreshold     = tally.plannedThreshold;
+      b.plannedVo2           = tally.plannedVo2;
+      b.plannedNeuromuscular = tally.plannedNeuromuscular;
+      b.plannedDurability    = tally.plannedDurability;
+      b.plannedStrength      = tally.plannedStrength;
+      b.plannedLongRide      = tally.plannedLongRide;
     }
   }
 
