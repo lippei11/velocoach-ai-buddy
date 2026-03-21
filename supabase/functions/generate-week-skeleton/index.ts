@@ -241,7 +241,7 @@ function buildUserPrompt(
 // Model config
 // =============================================================================
 
-const PLANNING_MODEL = Deno.env.get("PLANNING_MODEL") ?? "claude-sonnet-4-5-20251022";
+const PLANNING_MODEL = Deno.env.get("PLANNING_MODEL") ?? "claude-sonnet-4-6";
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
 
 // =============================================================================
