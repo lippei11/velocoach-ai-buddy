@@ -175,23 +175,28 @@ export default function Dashboard() {
     setDebugJson(null);
     setDebugModalTitle("build-workouts Response");
     setDebugModalOpen(true);
+    const weekStartDate = lastWeekSkeleton.weekStartDate as string;
     try {
       const { data, error } = await supabase.functions.invoke("build-workouts", {
-        body: {
-          weekSkeleton: lastWeekSkeleton,
-          weekStartDate: lastWeekSkeleton.weekStartDate as string,
-        },
+        body: { weekSkeleton: lastWeekSkeleton, weekStartDate },
       });
       if (error) {
         console.error("build-workouts error:", error);
-        setDebugJson(`Error:\n${await formatFnError(error)}`);
+        const errText = await formatFnError(error);
+        setDebugJson(
+          `// === REQUEST: weekSkeleton ===\n${JSON.stringify(lastWeekSkeleton, null, 2)}\n\n// === ERROR ===\n${errText}`
+        );
         return;
       }
       console.log("build-workouts response:", data);
-      setDebugJson(JSON.stringify(data, null, 2));
+      setDebugJson(
+        `// === REQUEST: weekSkeleton ===\n${JSON.stringify(lastWeekSkeleton, null, 2)}\n\n// === RESPONSE: build-workouts ===\n${JSON.stringify(data, null, 2)}`
+      );
     } catch (e: any) {
       console.error("build-workouts unexpected error:", e);
-      setDebugJson(`Unexpected error:\n${e.message}`);
+      setDebugJson(
+        `// === REQUEST: weekSkeleton ===\n${JSON.stringify(lastWeekSkeleton, null, 2)}\n\n// === UNEXPECTED ERROR ===\n${e.message}`
+      );
     } finally {
       setDebugLoading(false);
     }
