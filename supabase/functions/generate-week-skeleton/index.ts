@@ -7,6 +7,7 @@ import {
   buildWeeklyStressBudget,
   tallyPlannedSessions,
   validateWeekSkeleton,
+  type PlanStructure,
 } from "../_shared/planningCore.ts";
 
 // =============================================================================
@@ -193,7 +194,8 @@ function buildUserPrompt(
   athleteState: unknown,
   weekStartDate: string,
   weekCtx: unknown,
-  budget: unknown
+  budget: unknown,
+  blockCtx?: unknown
 ): string {
   const wc = (athleteState as Record<string, unknown>)?.weeklyContext as Record<string, unknown> ?? {};
   const specialWeekType = (wc.specialWeekType as string) ?? "normal";
@@ -223,6 +225,7 @@ function buildUserPrompt(
     instruction: "Generate a WeekSkeleton JSON for the week described below. Respond ONLY with the JSON object.",
     weekStartDate,
     weekContext: weekCtx,
+    ...(blockCtx ? { blockContext: blockCtx } : {}),
     weeklyStressBudget: budget,
     athleteState,
     loadContext: {
@@ -372,11 +375,13 @@ Deno.serve(async (req) => {
   const user = await getAuthenticatedUser(supabaseUser);
   if (!user) return jsonResponse({ error: "Unauthorized" }, 401);
 
-  // --- Parse request body (optional weekStartDate override) ---
+  // --- Parse request body (optional weekStartDate + planId overrides) ---
   let requestedWeekStart: string | null = null;
+  let planId: string | null = null;
   try {
     const body = await req.json();
     if (body?.weekStartDate) requestedWeekStart = body.weekStartDate;
+    if (body?.planId) planId = body.planId;
   } catch {
     // no body or invalid JSON — use current week
   }
@@ -410,6 +415,60 @@ Deno.serve(async (req) => {
   const athleteState = stateRow.state_json as Record<string, unknown>;
   const athleteStateComputedAt: string = stateRow.computed_at ?? "";
 
+  // --- Load stored plan if planId provided ---
+  let storedPlan: PlanStructure | null = null;
+  let blockRow: Record<string, unknown> | null = null;
+  let blockCtx: Record<string, unknown> | null = null;
+
+  if (planId) {
+    // Load plan_structure_json from plans table (must belong to authenticated user)
+    const { data: planRow } = await supabaseAdmin
+      .from("plans")
+      .select("plan_structure_json")
+      .eq("id", planId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (planRow?.plan_structure_json) {
+      storedPlan = planRow.plan_structure_json as PlanStructure;
+    }
+
+    // Load the block that covers weekStartDate
+    const { data: block } = await supabaseAdmin
+      .from("blocks")
+      .select("*")
+      .eq("plan_id", planId)
+      .lte("start_date", weekStartDate)
+      .gte("end_date", weekStartDate)
+      .maybeSingle();
+
+    if (block) {
+      blockRow = block as Record<string, unknown>;
+      // Compute weekInBlock: how many weeks from block start (1-indexed)
+      const blockStartMs = new Date((block.start_date as string) + "T00:00:00Z").getTime();
+      const weekMs = new Date(weekStartDate + "T00:00:00Z").getTime();
+      const weekInBlock = Math.floor((weekMs - blockStartMs) / (7 * 86400000)) + 1;
+      const deloadWeekNumbers = (block.deload_week_numbers as number[]) ?? [];
+      const blockNumber = block.block_number as number;
+      // Determine plan-level week number for this weekStartDate to check deload
+      const planStart = storedPlan?.planStartDate ?? weekStartDate;
+      const planStartMs = new Date(planStart + "T00:00:00Z").getTime();
+      const planWeekNumber = Math.floor((weekMs - planStartMs) / (7 * 86400000)) + 1;
+      const isDeloadWeek = deloadWeekNumbers.includes(planWeekNumber);
+
+      blockCtx = {
+        blockNumber,
+        blockNumberInPhase: block.block_number_in_phase as number,
+        phase: block.phase as string,
+        weekInBlock,
+        isDeloadWeek,
+        blockWeeks: block.weeks as number,
+        blockLoadWeeks: block.load_weeks as number,
+        userInputs: (block.user_inputs_json as Record<string, unknown>) ?? {},
+      };
+    }
+  }
+
   // --- Cache check ---
   const fingerprint = await computeInputFingerprint(
     user.id,
@@ -420,7 +479,7 @@ Deno.serve(async (req) => {
   const cached = await lookupCachedSkeleton(supabaseAdmin, user.id, weekStartDate, fingerprint);
   if (cached) {
     // Build deterministic context fields for the response (no LLM needed)
-    const planForCtx = generatePlanStructure({
+    const planForCtx = storedPlan ?? generatePlanStructure({
       eventDate: (athleteState.eventDate as string | null) ?? null,
       todayDate: weekStartDate,
       currentCtl: (athleteState.recentLoad as Record<string, unknown>)?.ctl as number | null ?? null,
@@ -453,6 +512,7 @@ Deno.serve(async (req) => {
             keySessionTypes: weekCtxForCache.phase.keySessionTypes,
           }
         : null,
+      ...(blockCtx ? { blockContext: blockCtx } : {}),
       planSummary: {
         macroStrategy: planForCtx.macroStrategy,
         totalWeeks: planForCtx.totalWeeks,
@@ -469,8 +529,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  // --- Build plan structure from AthleteState ---
-  const plan = generatePlanStructure({
+  // --- Build plan structure (use stored plan if available, else derive from AthleteState) ---
+  const plan: PlanStructure = storedPlan ?? generatePlanStructure({
     eventDate: (athleteState.eventDate as string | null) ?? null,
     todayDate: weekStartDate,
     currentCtl: (athleteState.recentLoad as Record<string, unknown>)?.ctl as number | null ?? null,
@@ -492,14 +552,18 @@ Deno.serve(async (req) => {
   }
 
   // --- Build budget ---
+  // If block has user_inputs_json.availableDays, use that instead of athleteState's
+  const blockAvailableDays = blockRow
+    ? (blockRow.user_inputs_json as Record<string, unknown>)?.availableDays
+    : undefined;
   const availableDays = parseAvailableDays(
-    (athleteState.weeklyContext as Record<string, unknown>)?.availableDays
+    blockAvailableDays ?? (athleteState.weeklyContext as Record<string, unknown>)?.availableDays
   );
   const budget = buildWeeklyStressBudget(weekCtx, constitution, athleteState as unknown);
 
   // --- Build prompts ---
   const systemPrompt = buildSystemPrompt();
-  const userPrompt = buildUserPrompt(athleteState, weekStartDate, weekCtx, budget);
+  const userPrompt = buildUserPrompt(athleteState, weekStartDate, weekCtx, budget, blockCtx ?? undefined);
 
   // --- Call LLM (with one retry on validation failure) ---
   let skeleton: unknown = null;
@@ -613,6 +677,7 @@ Deno.serve(async (req) => {
       weeksUntilEvent: weekCtx.weeksUntilEvent,
       keySessionTypes: weekCtx.phase.keySessionTypes,
     },
+    ...(blockCtx ? { blockContext: blockCtx } : {}),
     planSummary: {
       macroStrategy: plan.macroStrategy,
       totalWeeks: plan.totalWeeks,
