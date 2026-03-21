@@ -154,6 +154,7 @@ export type Database = {
           prefer_indoor_intervals: boolean | null
           prefer_outdoor_long_ride: boolean | null
           strength_sessions_per_week: number | null
+          training_time_of_day: string | null
           updated_at: string | null
           user_id: string
         }
@@ -170,6 +171,7 @@ export type Database = {
           prefer_indoor_intervals?: boolean | null
           prefer_outdoor_long_ride?: boolean | null
           strength_sessions_per_week?: number | null
+          training_time_of_day?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -186,6 +188,7 @@ export type Database = {
           prefer_indoor_intervals?: boolean | null
           prefer_outdoor_long_ride?: boolean | null
           strength_sessions_per_week?: number | null
+          training_time_of_day?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -239,6 +242,27 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           weight?: number | null
+        }
+        Relationships: []
+      }
+      athlete_state: {
+        Row: {
+          computed_at: string
+          id: string
+          state_json: Json
+          user_id: string
+        }
+        Insert: {
+          computed_at: string
+          id?: string
+          state_json?: Json
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          id?: string
+          state_json?: Json
+          user_id?: string
         }
         Relationships: []
       }
@@ -344,45 +368,63 @@ export type Database = {
       }
       planned_workouts: {
         Row: {
+          completion_status: string | null
           created_at: string | null
           date: string
           description: string | null
           duration_minutes: number | null
+          executed_tss: number | null
           id: string
           intervals_event_id: string | null
+          intervals_icu_id: string | null
+          match_confidence: number | null
           name: string
           plan_id: string | null
+          planned_tss: number | null
           purpose: string | null
+          stress_type: string | null
           synced_to_intervals: boolean | null
           tss_target: number | null
           user_id: string
           workout_type: string | null
         }
         Insert: {
+          completion_status?: string | null
           created_at?: string | null
           date: string
           description?: string | null
           duration_minutes?: number | null
+          executed_tss?: number | null
           id?: string
           intervals_event_id?: string | null
+          intervals_icu_id?: string | null
+          match_confidence?: number | null
           name: string
           plan_id?: string | null
+          planned_tss?: number | null
           purpose?: string | null
+          stress_type?: string | null
           synced_to_intervals?: boolean | null
           tss_target?: number | null
           user_id: string
           workout_type?: string | null
         }
         Update: {
+          completion_status?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
           duration_minutes?: number | null
+          executed_tss?: number | null
           id?: string
           intervals_event_id?: string | null
+          intervals_icu_id?: string | null
+          match_confidence?: number | null
           name?: string
           plan_id?: string | null
+          planned_tss?: number | null
           purpose?: string | null
+          stress_type?: string | null
           synced_to_intervals?: boolean | null
           tss_target?: number | null
           user_id?: string
@@ -401,9 +443,11 @@ export type Database = {
       plans: {
         Row: {
           available_days: Json | null
+          constitution_version: string | null
           created_at: string | null
           current_ctl: number | null
           event_date: string | null
+          event_demand_profile: string | null
           fitness_context: string | null
           goal_event: string | null
           goal_type: string | null
@@ -415,14 +459,17 @@ export type Database = {
           rationale: string | null
           status: string
           target_ctl: number | null
+          typology: string | null
           user_id: string
           version: number
         }
         Insert: {
           available_days?: Json | null
+          constitution_version?: string | null
           created_at?: string | null
           current_ctl?: number | null
           event_date?: string | null
+          event_demand_profile?: string | null
           fitness_context?: string | null
           goal_event?: string | null
           goal_type?: string | null
@@ -434,14 +481,17 @@ export type Database = {
           rationale?: string | null
           status?: string
           target_ctl?: number | null
+          typology?: string | null
           user_id: string
           version?: number
         }
         Update: {
           available_days?: Json | null
+          constitution_version?: string | null
           created_at?: string | null
           current_ctl?: number | null
           event_date?: string | null
+          event_demand_profile?: string | null
           fitness_context?: string | null
           goal_event?: string | null
           goal_type?: string | null
@@ -453,6 +503,7 @@ export type Database = {
           rationale?: string | null
           status?: string
           target_ctl?: number | null
+          typology?: string | null
           user_id?: string
           version?: number
         }
