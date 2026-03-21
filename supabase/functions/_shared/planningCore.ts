@@ -138,6 +138,17 @@ export interface WeekContext {
   weeksUntilEvent: number | null;
 }
 
+export interface DerivedBlock {
+  phase: Phase;
+  blockNumber: number;           // 1-indexed within plan
+  blockNumberInPhase: number;    // 1-indexed within phase
+  startDate: string;             // ISO date
+  endDate: string;               // ISO date
+  weeks: number;
+  loadWeeks: number;
+  deloadWeekNumbers: number[];   // plan-level week numbers
+}
+
 export interface WeekSkeletonValidationError {
   field: string;
   code: string;
@@ -626,6 +637,72 @@ export function shouldActivateAdaptiveDeload(
 ): boolean {
   if (!phase.deloadStrategy.flexibleInsertionAllowed) return false;
   return triggers.some((t) => phase.deloadStrategy.triggers.includes(t));
+}
+
+// =============================================================================
+// PUBLIC API — BLOCK DERIVATION
+// =============================================================================
+
+/**
+ * Pure function: derives mesocycle block records from a PlanStructure.
+ * No DB access. Usable client-side for instant previews.
+ */
+export function deriveBlocksFromPlan(plan: PlanStructure): DerivedBlock[] {
+  const blocks: DerivedBlock[] = [];
+  let blockNumber = 0;
+
+  for (const phase of plan.phases) {
+    const { deloadStrategy, weekNumbers, deloadWeeks } = phase;
+    const { defaultPattern } = deloadStrategy;
+
+    if (defaultPattern === "none") {
+      // Entire phase = 1 block, no deload weeks
+      blockNumber++;
+      const firstWeek = weekNumbers[0];
+      const blockWeeks = weekNumbers.length;
+      blocks.push({
+        phase: phase.phase,
+        blockNumber,
+        blockNumberInPhase: 1,
+        startDate: isoDate(addDays(parseISO(plan.planStartDate), (firstWeek - 1) * 7)),
+        endDate: isoDate(addDays(parseISO(plan.planStartDate), (firstWeek - 1 + blockWeeks) * 7 - 1)),
+        weeks: blockWeeks,
+        loadWeeks: blockWeeks,
+        deloadWeekNumbers: [],
+      });
+    } else {
+      const interval = defaultPattern === "every_3_weeks" ? 3 : 4;
+      const phaseWeeks = weekNumbers.length;
+      let blockInPhase = 0;
+      let weekIndex = 0;
+
+      while (weekIndex < phaseWeeks) {
+        blockInPhase++;
+        blockNumber++;
+        const blockWeeks = Math.min(interval, phaseWeeks - weekIndex);
+        const firstPlanWeek = weekNumbers[weekIndex];
+
+        const blockPlanWeeks = weekNumbers.slice(weekIndex, weekIndex + blockWeeks);
+        const blockWeekSet = new Set(blockPlanWeeks);
+        const deloadWeekNumbers = deloadWeeks.filter((w) => blockWeekSet.has(w));
+
+        blocks.push({
+          phase: phase.phase,
+          blockNumber,
+          blockNumberInPhase: blockInPhase,
+          startDate: isoDate(addDays(parseISO(plan.planStartDate), (firstPlanWeek - 1) * 7)),
+          endDate: isoDate(addDays(parseISO(plan.planStartDate), (firstPlanWeek - 1 + blockWeeks) * 7 - 1)),
+          weeks: blockWeeks,
+          loadWeeks: blockWeeks - deloadWeekNumbers.length,
+          deloadWeekNumbers,
+        });
+
+        weekIndex += blockWeeks;
+      }
+    }
+  }
+
+  return blocks;
 }
 
 // =============================================================================
