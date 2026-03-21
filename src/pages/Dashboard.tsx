@@ -93,6 +93,8 @@ export default function Dashboard() {
   const [debugJson, setDebugJson] = useState<string | null>(null);
   const [debugLoading, setDebugLoading] = useState(false);
   const [weeklyCtx, setWeeklyCtx] = useState<WeeklyContextValues>(defaultWeeklyContextValues);
+  // Temporary: holds last successful weekSkeleton for build-workouts debug
+  const [lastWeekSkeleton, setLastWeekSkeleton] = useState<Record<string, unknown> | null>(null);
 
   /** Formats a Supabase FunctionsError into a readable debug string. */
   async function formatFnError(e: any): Promise<string> {
@@ -158,8 +160,37 @@ export default function Dashboard() {
       }
       console.log("generate-week-skeleton response:", data);
       setDebugJson(JSON.stringify(data, null, 2));
+      if (data?.weekSkeleton) setLastWeekSkeleton(data.weekSkeleton);
     } catch (e: any) {
       console.error("generate-week-skeleton unexpected error:", e);
+      setDebugJson(`Unexpected error:\n${e.message}`);
+    } finally {
+      setDebugLoading(false);
+    }
+  }
+
+  async function handleTestBuildWorkouts() {
+    if (!lastWeekSkeleton) return;
+    setDebugLoading(true);
+    setDebugJson(null);
+    setDebugModalTitle("build-workouts Response");
+    setDebugModalOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("build-workouts", {
+        body: {
+          weekSkeleton: lastWeekSkeleton,
+          weekStartDate: lastWeekSkeleton.weekStartDate as string,
+        },
+      });
+      if (error) {
+        console.error("build-workouts error:", error);
+        setDebugJson(`Error:\n${await formatFnError(error)}`);
+        return;
+      }
+      console.log("build-workouts response:", data);
+      setDebugJson(JSON.stringify(data, null, 2));
+    } catch (e: any) {
+      console.error("build-workouts unexpected error:", e);
       setDebugJson(`Unexpected error:\n${e.message}`);
     } finally {
       setDebugLoading(false);
@@ -277,6 +308,10 @@ export default function Dashboard() {
           <Button variant="outline" size="sm" onClick={handleTestWeekSkeleton} disabled={debugLoading}>
             <Bug className="h-4 w-4 mr-1" />
             Test Week Skeleton
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleTestBuildWorkouts} disabled={debugLoading || !lastWeekSkeleton}>
+            <Bug className="h-4 w-4 mr-1" />
+            Test Build Workouts
           </Button>
           <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
