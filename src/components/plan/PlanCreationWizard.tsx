@@ -126,6 +126,7 @@ export function PlanCreationWizard({ onPlanCreated }: PlanCreationWizardProps) {
     typology: "PYRAMIDAL",
     preferOutdoorLongRide: true,
     preferIndoorIntervals: true,
+    vacationWeeks: [],
   });
 
   // Pre-fill from athlete preferences once loaded
