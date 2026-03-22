@@ -48,10 +48,29 @@ export interface PlanStructure {
   weeksUntilEvent: number | null;
 }
 
+export interface BlockContext {
+  blockNumber: number;
+  blockNumberInPhase: number;
+  phase: string;
+  weekInBlock: number;
+  isDeloadWeek: boolean;
+  blockWeeks: number;
+  blockLoadWeeks: number;
+}
+
 export interface PipelineResponse {
   weekSkeleton: WeekSkeleton;
   weekContext: WeekContext;
   planStructure: PlanStructure;
+}
+
+export interface CreatePlanResult {
+  planId: string;
+  planStructure: unknown;
+  blocks: unknown[];
+  weekContext: WeekContext | null;
+  blockContext: BlockContext | null;
+  weekSkeleton: WeekSkeleton | null;
 }
 
 // Color maps for pipeline types
