@@ -266,6 +266,68 @@ export type Database = {
         }
         Relationships: []
       }
+      blocks: {
+        Row: {
+          block_number: number
+          block_number_in_phase: number
+          created_at: string | null
+          deload_week_numbers: Json | null
+          end_date: string
+          id: string
+          load_weeks: number
+          phase: string
+          plan_id: string
+          start_date: string
+          status: string
+          updated_at: string | null
+          user_id: string
+          user_inputs_json: Json | null
+          weeks: number
+        }
+        Insert: {
+          block_number: number
+          block_number_in_phase: number
+          created_at?: string | null
+          deload_week_numbers?: Json | null
+          end_date: string
+          id?: string
+          load_weeks: number
+          phase: string
+          plan_id: string
+          start_date: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+          user_inputs_json?: Json | null
+          weeks: number
+        }
+        Update: {
+          block_number?: number
+          block_number_in_phase?: number
+          created_at?: string | null
+          deload_week_numbers?: Json | null
+          end_date?: string
+          id?: string
+          load_weeks?: number
+          phase?: string
+          plan_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+          user_inputs_json?: Json | null
+          weeks?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
@@ -442,10 +504,12 @@ export type Database = {
       }
       plans: {
         Row: {
+          archived_at: string | null
           available_days: Json | null
           constitution_version: string | null
           created_at: string | null
           current_ctl: number | null
+          entry_state: string | null
           event_date: string | null
           event_demand_profile: string | null
           fitness_context: string | null
@@ -453,8 +517,11 @@ export type Database = {
           goal_type: string | null
           hours_per_week: number | null
           id: string
+          macro_strategy: string | null
           phases: Json | null
           philosophy: string | null
+          plan_start_date: string | null
+          plan_structure_json: Json | null
           race_priority: string | null
           rationale: string | null
           status: string
@@ -464,10 +531,12 @@ export type Database = {
           version: number
         }
         Insert: {
+          archived_at?: string | null
           available_days?: Json | null
           constitution_version?: string | null
           created_at?: string | null
           current_ctl?: number | null
+          entry_state?: string | null
           event_date?: string | null
           event_demand_profile?: string | null
           fitness_context?: string | null
@@ -475,8 +544,11 @@ export type Database = {
           goal_type?: string | null
           hours_per_week?: number | null
           id?: string
+          macro_strategy?: string | null
           phases?: Json | null
           philosophy?: string | null
+          plan_start_date?: string | null
+          plan_structure_json?: Json | null
           race_priority?: string | null
           rationale?: string | null
           status?: string
@@ -486,10 +558,12 @@ export type Database = {
           version?: number
         }
         Update: {
+          archived_at?: string | null
           available_days?: Json | null
           constitution_version?: string | null
           created_at?: string | null
           current_ctl?: number | null
+          entry_state?: string | null
           event_date?: string | null
           event_demand_profile?: string | null
           fitness_context?: string | null
@@ -497,8 +571,11 @@ export type Database = {
           goal_type?: string | null
           hours_per_week?: number | null
           id?: string
+          macro_strategy?: string | null
           phases?: Json | null
           philosophy?: string | null
+          plan_start_date?: string | null
+          plan_structure_json?: Json | null
           race_priority?: string | null
           rationale?: string | null
           status?: string
