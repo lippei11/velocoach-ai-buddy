@@ -100,6 +100,7 @@ interface WizardState {
   typology: string;
   preferOutdoorLongRide: boolean;
   preferIndoorIntervals: boolean;
+  vacationWeeks: string[];
 }
 
 interface PlanCreationWizardProps {
