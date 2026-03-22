@@ -615,6 +615,14 @@ function StepStrategy({
             />
           </div>
         </div>
+
+        <Separator />
+
+        {/* Vacation Weeks (optional) */}
+        <VacationWeeksInput
+          vacationWeeks={state.vacationWeeks}
+          onChange={(weeks) => update("vacationWeeks", weeks)}
+        />
       </CardContent>
     </Card>
   );
