@@ -213,6 +213,7 @@ export function PlanCreationWizard({ onPlanCreated }: PlanCreationWizardProps) {
         strengthSessionsPerWeek: state.strengthSessionsPerWeek,
         entryState: state.entryState as "fresh_start" | "mid_training" | "returning_after_break",
         typology: state.typology as "PYRAMIDAL" | "POLARIZED" | "SS_THRESHOLD",
+        vacationWeeks: state.vacationWeeks.length > 0 ? state.vacationWeeks : undefined,
       });
       onPlanCreated(result);
     } catch (err: any) {
