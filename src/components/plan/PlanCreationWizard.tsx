@@ -733,11 +733,19 @@ function StepPhasePreview({
                 key={w.weekNum}
                 className={cn(
                   "relative flex-1 min-w-0 transition-colors",
-                  w.isDeload ? PHASE_COLORS_LIGHT[w.phase] : PHASE_COLORS[w.phase],
+                  w.isVacation
+                    ? "bg-muted"
+                    : w.isDeload ? PHASE_COLORS_LIGHT[w.phase] : PHASE_COLORS[w.phase],
                   w.isBlockBoundary && "border-l-2 border-background"
                 )}
-                title={`Week ${w.weekNum} — ${PHASE_LABELS[w.phase]}${w.isDeload ? " (Deload)" : ""}`}
+                title={`Week ${w.weekNum} — ${PHASE_LABELS[w.phase]}${w.isDeload ? " (Deload)" : ""}${w.isVacation ? " (Vacation)" : ""}`}
               >
+                {/* Vacation icon */}
+                {w.isVacation && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Palmtree className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                )}
                 {/* Deload hatching */}
                 {w.isDeload && (
                   <div className="absolute inset-0 opacity-30" style={{
