@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { format, startOfWeek } from "date-fns";
-import { CalendarIcon, ChevronRight, ChevronLeft, Loader2, AlertTriangle, Flag } from "lucide-react";
+import { addDays, format, parseISO, startOfWeek } from "date-fns";
+import { CalendarIcon, ChevronRight, ChevronLeft, Loader2, AlertTriangle, Flag, Palmtree, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,7 @@ interface WizardState {
   typology: string;
   preferOutdoorLongRide: boolean;
   preferIndoorIntervals: boolean;
+  vacationWeeks: string[];
 }
 
 interface PlanCreationWizardProps {
@@ -125,6 +126,7 @@ export function PlanCreationWizard({ onPlanCreated }: PlanCreationWizardProps) {
     typology: "PYRAMIDAL",
     preferOutdoorLongRide: true,
     preferIndoorIntervals: true,
+    vacationWeeks: [],
   });
 
   // Pre-fill from athlete preferences once loaded
@@ -211,6 +213,7 @@ export function PlanCreationWizard({ onPlanCreated }: PlanCreationWizardProps) {
         strengthSessionsPerWeek: state.strengthSessionsPerWeek,
         entryState: state.entryState as "fresh_start" | "mid_training" | "returning_after_break",
         typology: state.typology as "PYRAMIDAL" | "POLARIZED" | "SS_THRESHOLD",
+        vacationWeeks: state.vacationWeeks.length > 0 ? state.vacationWeeks : undefined,
       });
       onPlanCreated(result);
     } catch (err: any) {
@@ -252,6 +255,7 @@ export function PlanCreationWizard({ onPlanCreated }: PlanCreationWizardProps) {
         <StepPhasePreview
           planPreview={planPreview}
           eventDate={state.eventDate}
+          vacationWeeks={state.vacationWeeks}
         />
       )}
       {currentStep === 4 && (
@@ -612,8 +616,87 @@ function StepStrategy({
             />
           </div>
         </div>
+
+        <Separator />
+
+        {/* Vacation Weeks (optional) */}
+        <VacationWeeksInput
+          vacationWeeks={state.vacationWeeks}
+          onChange={(weeks) => update("vacationWeeks", weeks)}
+        />
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Vacation Weeks Input ─────────────────────────────────────────────────────
+
+function VacationWeeksInput({
+  vacationWeeks,
+  onChange,
+}: {
+  vacationWeeks: string[];
+  onChange: (weeks: string[]) => void;
+}) {
+  const addWeek = (date: Date | undefined) => {
+    if (!date) return;
+    // Snap to Monday
+    const day = date.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const monday = addDays(date, diff);
+    const iso = format(monday, "yyyy-MM-dd");
+    if (!vacationWeeks.includes(iso)) {
+      onChange([...vacationWeeks, iso].sort());
+    }
+  };
+
+  const removeWeek = (iso: string) => {
+    onChange(vacationWeeks.filter((w) => w !== iso));
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs flex items-center gap-1.5">
+        <Palmtree className="h-3.5 w-3.5 text-muted-foreground" />
+        Vacation Weeks (optional)
+      </Label>
+      <p className="text-[11px] text-muted-foreground">
+        Select dates during planned vacations — they'll be snapped to the week's Monday.
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {vacationWeeks.map((vw) => (
+          <Badge key={vw} variant="secondary" className="gap-1 text-xs pr-1">
+            {format(parseISO(vw), "MMM d, yyyy")}
+            <button
+              type="button"
+              onClick={() => removeWeek(vw)}
+              className="rounded-full hover:bg-muted-foreground/20 p-0.5"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="text-xs">
+            <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+            Add vacation week
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            onSelect={addWeek}
+            disabled={(date) => date < new Date()}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
 
@@ -622,9 +705,11 @@ function StepStrategy({
 function StepPhasePreview({
   planPreview,
   eventDate,
+  vacationWeeks,
 }: {
   planPreview: { structure: PlanStructure; blocks: DerivedBlock[] } | null;
   eventDate: string | null;
+  vacationWeeks: string[];
 }) {
   if (!planPreview) {
     return (
@@ -641,6 +726,24 @@ function StepPhasePreview({
   const { structure, blocks } = planPreview;
   const totalWeeks = structure.totalWeeks;
 
+  // Compute which week numbers are vacation weeks
+  const vacationWeekNums = useMemo(() => {
+    const nums = new Set<number>();
+    if (vacationWeeks.length === 0) return nums;
+    for (const vw of vacationWeeks) {
+      for (const phase of structure.phases) {
+        for (const wn of phase.weekNumbers) {
+          const weekStart = format(
+            addDays(parseISO(structure.planStartDate), (wn - 1) * 7),
+            "yyyy-MM-dd"
+          );
+          if (weekStart === vw) nums.add(wn);
+        }
+      }
+    }
+    return nums;
+  }, [structure, vacationWeeks]);
+
   // Build a week-by-week map for the timeline
   const weekData = useMemo(() => {
     const weeks: Array<{
@@ -648,6 +751,7 @@ function StepPhasePreview({
       phase: string;
       isDeload: boolean;
       isBlockBoundary: boolean;
+      isVacation: boolean;
     }> = [];
 
     for (const phase of structure.phases) {
@@ -675,11 +779,12 @@ function StepPhasePreview({
           phase: phase.phase,
           isDeload,
           isBlockBoundary,
+          isVacation: vacationWeekNums.has(wn),
         });
       }
     }
     return weeks;
-  }, [structure, blocks]);
+  }, [structure, blocks, vacationWeekNums]);
 
   return (
     <Card>
@@ -699,11 +804,19 @@ function StepPhasePreview({
                 key={w.weekNum}
                 className={cn(
                   "relative flex-1 min-w-0 transition-colors",
-                  w.isDeload ? PHASE_COLORS_LIGHT[w.phase] : PHASE_COLORS[w.phase],
+                  w.isVacation
+                    ? "bg-muted"
+                    : w.isDeload ? PHASE_COLORS_LIGHT[w.phase] : PHASE_COLORS[w.phase],
                   w.isBlockBoundary && "border-l-2 border-background"
                 )}
-                title={`Week ${w.weekNum} — ${PHASE_LABELS[w.phase]}${w.isDeload ? " (Deload)" : ""}`}
+                title={`Week ${w.weekNum} — ${PHASE_LABELS[w.phase]}${w.isDeload ? " (Deload)" : ""}${w.isVacation ? " (Vacation)" : ""}`}
               >
+                {/* Vacation icon */}
+                {w.isVacation && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Palmtree className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                )}
                 {/* Deload hatching */}
                 {w.isDeload && (
                   <div className="absolute inset-0 opacity-30" style={{
@@ -790,6 +903,22 @@ function StepPhasePreview({
             ))}
           </div>
         </div>
+
+        {/* Vacation weeks feedback */}
+        {vacationWeeks.length > 0 && (
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Palmtree className="h-3 w-3" /> Vacation Weeks
+            </Label>
+            <div className="flex flex-wrap gap-1.5">
+              {vacationWeeks.map((vw) => (
+                <Badge key={vw} variant="outline" className="text-xs">
+                  {format(parseISO(vw), "MMM d, yyyy")}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -900,6 +1029,12 @@ function StepConfirm({
                   .map((p) => `${PHASE_LABELS[p.phase]} ${p.weeks}w`)
                   .join(" · ")}
               </span>
+              {state.vacationWeeks.length > 0 && (
+                <>
+                  <span className="text-muted-foreground">Vacation Weeks</span>
+                  <span>{state.vacationWeeks.map((vw) => format(parseISO(vw), "MMM d")).join(", ")}</span>
+                </>
+              )}
             </div>
           </div>
         )}
