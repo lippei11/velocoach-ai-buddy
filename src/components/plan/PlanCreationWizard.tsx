@@ -633,9 +633,11 @@ function StepStrategy({
 function StepPhasePreview({
   planPreview,
   eventDate,
+  vacationWeeks,
 }: {
   planPreview: { structure: PlanStructure; blocks: DerivedBlock[] } | null;
   eventDate: string | null;
+  vacationWeeks: string[];
 }) {
   if (!planPreview) {
     return (
