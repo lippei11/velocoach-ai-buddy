@@ -832,6 +832,22 @@ function StepPhasePreview({
             ))}
           </div>
         </div>
+
+        {/* Vacation weeks feedback */}
+        {vacationWeeks.length > 0 && (
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Palmtree className="h-3 w-3" /> Vacation Weeks
+            </Label>
+            <div className="flex flex-wrap gap-1.5">
+              {vacationWeeks.map((vw) => (
+                <Badge key={vw} variant="outline" className="text-xs">
+                  {format(parseISO(vw), "MMM d, yyyy")}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
