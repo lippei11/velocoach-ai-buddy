@@ -713,7 +713,7 @@ function StepPhasePreview({
       }
     }
     return weeks;
-  }, [structure, blocks]);
+  }, [structure, blocks, vacationWeekNums]);
 
   return (
     <Card>
