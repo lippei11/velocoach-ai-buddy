@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { format, startOfWeek } from "date-fns";
-import { CalendarIcon, ChevronRight, ChevronLeft, Loader2, AlertTriangle, Flag } from "lucide-react";
+import { addDays, format, parseISO, startOfWeek } from "date-fns";
+import { CalendarIcon, ChevronRight, ChevronLeft, Loader2, AlertTriangle, Flag, Palmtree, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
