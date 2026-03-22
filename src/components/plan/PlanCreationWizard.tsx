@@ -655,6 +655,24 @@ function StepPhasePreview({
   const { structure, blocks } = planPreview;
   const totalWeeks = structure.totalWeeks;
 
+  // Compute which week numbers are vacation weeks
+  const vacationWeekNums = useMemo(() => {
+    const nums = new Set<number>();
+    if (vacationWeeks.length === 0) return nums;
+    for (const vw of vacationWeeks) {
+      for (const phase of structure.phases) {
+        for (const wn of phase.weekNumbers) {
+          const weekStart = format(
+            addDays(parseISO(structure.planStartDate), (wn - 1) * 7),
+            "yyyy-MM-dd"
+          );
+          if (weekStart === vw) nums.add(wn);
+        }
+      }
+    }
+    return nums;
+  }, [structure, vacationWeeks]);
+
   // Build a week-by-week map for the timeline
   const weekData = useMemo(() => {
     const weeks: Array<{
@@ -662,6 +680,7 @@ function StepPhasePreview({
       phase: string;
       isDeload: boolean;
       isBlockBoundary: boolean;
+      isVacation: boolean;
     }> = [];
 
     for (const phase of structure.phases) {
