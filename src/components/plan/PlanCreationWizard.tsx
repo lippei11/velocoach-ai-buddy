@@ -255,6 +255,7 @@ export function PlanCreationWizard({ onPlanCreated }: PlanCreationWizardProps) {
         <StepPhasePreview
           planPreview={planPreview}
           eventDate={state.eventDate}
+          vacationWeeks={state.vacationWeeks}
         />
       )}
       {currentStep === 4 && (
