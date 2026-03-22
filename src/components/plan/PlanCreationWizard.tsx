@@ -629,6 +629,77 @@ function StepStrategy({
   );
 }
 
+// ─── Vacation Weeks Input ─────────────────────────────────────────────────────
+
+function VacationWeeksInput({
+  vacationWeeks,
+  onChange,
+}: {
+  vacationWeeks: string[];
+  onChange: (weeks: string[]) => void;
+}) {
+  const addWeek = (date: Date | undefined) => {
+    if (!date) return;
+    // Snap to Monday
+    const day = date.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const monday = addDays(date, diff);
+    const iso = format(monday, "yyyy-MM-dd");
+    if (!vacationWeeks.includes(iso)) {
+      onChange([...vacationWeeks, iso].sort());
+    }
+  };
+
+  const removeWeek = (iso: string) => {
+    onChange(vacationWeeks.filter((w) => w !== iso));
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs flex items-center gap-1.5">
+        <Palmtree className="h-3.5 w-3.5 text-muted-foreground" />
+        Vacation Weeks (optional)
+      </Label>
+      <p className="text-[11px] text-muted-foreground">
+        Select dates during planned vacations — they'll be snapped to the week's Monday.
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {vacationWeeks.map((vw) => (
+          <Badge key={vw} variant="secondary" className="gap-1 text-xs pr-1">
+            {format(parseISO(vw), "MMM d, yyyy")}
+            <button
+              type="button"
+              onClick={() => removeWeek(vw)}
+              className="rounded-full hover:bg-muted-foreground/20 p-0.5"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="text-xs">
+            <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+            Add vacation week
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            onSelect={addWeek}
+            disabled={(date) => date < new Date()}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 // ─── Step 3: Phase & Block Preview ───────────────────────────────────────────
 
 function StepPhasePreview({
