@@ -708,6 +708,7 @@ function StepPhasePreview({
           phase: phase.phase,
           isDeload,
           isBlockBoundary,
+          isVacation: vacationWeekNums.has(wn),
         });
       }
     }
