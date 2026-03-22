@@ -958,6 +958,12 @@ function StepConfirm({
                   .map((p) => `${PHASE_LABELS[p.phase]} ${p.weeks}w`)
                   .join(" · ")}
               </span>
+              {state.vacationWeeks.length > 0 && (
+                <>
+                  <span className="text-muted-foreground">Vacation Weeks</span>
+                  <span>{state.vacationWeeks.map((vw) => format(parseISO(vw), "MMM d")).join(", ")}</span>
+                </>
+              )}
             </div>
           </div>
         )}
