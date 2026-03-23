@@ -54,7 +54,7 @@ export default function TrainingPlan() {
 
   // Derived state — Task 8 state machine
   const hasPlan = !!plan && !showWizard;
-  const weekSkeleton: WeekSkeleton | null = freshSkeleton ?? pipelineSkeleton ?? null;
+  const weekSkeleton: WeekSkeleton | null = freshSkeleton ?? skeleton ?? null;
   const weekContext: WeekContext | null = freshWeekContext ?? pipelineWeekContext ?? null;
   const blockContext: BlockContext | null = freshBlockContext ?? pipelineBlockContext ?? null;
   const activeBlocks: BlockRow[] = freshBlocks ?? blocks;
