@@ -188,13 +188,6 @@ export default function Onboarding() {
               Save & Continue
             </Button>
 
-            <Button
-              variant="ghost"
-              className="w-full text-muted-foreground"
-              onClick={() => navigate("/dashboard")}
-            >
-              Skip for now
-            </Button>
           </CardContent>
         </Card>
       </div>
