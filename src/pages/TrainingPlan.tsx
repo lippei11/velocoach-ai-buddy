@@ -67,10 +67,10 @@ export default function TrainingPlan() {
 
   // State machine: plan exists, skeleton not loaded → call loadCurrentWeek(plan.id)
   useEffect(() => {
-    if (plan && !showWizard && !freshSkeleton && !pipelineSkeleton && !pipelineLoading) {
+    if (plan && !showWizard && !freshSkeleton && !skeleton && !pipelineLoading) {
       loadCurrentWeek(plan.id);
     }
-  }, [plan, showWizard, freshSkeleton, pipelineSkeleton, pipelineLoading, loadCurrentWeek]);
+  }, [plan, showWizard, freshSkeleton, skeleton, pipelineLoading, loadCurrentWeek]);
 
   // Panel state
   const [selectedSlot, setSelectedSlot] = useState<SessionSlot | null>(null);
