@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bike, ChevronDown, Loader2, Target } from "lucide-react";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { Bike, ChevronDown, Loader2, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
