@@ -42,9 +42,6 @@ export default function Onboarding() {
 
   // Step 2: Training setup
   const [savingPrefs, setSavingPrefs] = useState(false);
-  const [eventDate, setEventDate] = useState<Date | undefined>(
-    prefs.event_date ? new Date(prefs.event_date) : undefined
-  );
 
   const handleConnect = async () => {
     if (!athleteId.trim() || !apiKey.trim()) {
