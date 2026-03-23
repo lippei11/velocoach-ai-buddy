@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bike, ChevronDown, Loader2, Target } from "lucide-react";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +9,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,9 +41,6 @@ export default function Onboarding() {
 
   // Step 2: Training setup
   const [savingPrefs, setSavingPrefs] = useState(false);
-  const [eventDate, setEventDate] = useState<Date | undefined>(
-    prefs.event_date ? new Date(prefs.event_date) : undefined
-  );
 
   const handleConnect = async () => {
     if (!athleteId.trim() || !apiKey.trim()) {
@@ -93,15 +86,11 @@ export default function Onboarding() {
 
   const handleSaveSetup = async () => {
     setSavingPrefs(true);
-    const updated = {
-      ...prefs,
-      event_date: eventDate ? format(eventDate, "yyyy-MM-dd") : "",
-    };
-    const ok = await save(updated);
+    const ok = await save(prefs);
     setSavingPrefs(false);
     if (ok) {
       toast.success("Training setup saved!");
-      navigate("/dashboard");
+      navigate("/plan");
     } else {
       toast.error("Failed to save — please try again");
     }
@@ -141,35 +130,6 @@ export default function Onboarding() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Event date */}
-            <div className="space-y-2">
-              <Label>Target event date (optional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !eventDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {eventDate ? format(eventDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={eventDate}
-                    onSelect={setEventDate}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
             </div>
 
             {/* Hours per week */}
@@ -227,13 +187,6 @@ export default function Onboarding() {
               Save & Continue
             </Button>
 
-            <Button
-              variant="ghost"
-              className="w-full text-muted-foreground"
-              onClick={() => navigate("/dashboard")}
-            >
-              Skip for now
-            </Button>
           </CardContent>
         </Card>
       </div>
