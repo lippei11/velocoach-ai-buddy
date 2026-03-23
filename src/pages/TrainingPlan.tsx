@@ -13,6 +13,17 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfWeek } from "date-fns";
+import type { PlanStructure as CorePlanStructure } from "@/lib/coaching/planningCore";
+
+/** Adapt the full planningCore PlanStructure to the simplified UI PlanStructure */
+function toUiPlanStructure(core: CorePlanStructure, weekCtx: WeekContext | null): PlanStructure {
+  return {
+    totalWeeks: core.totalWeeks,
+    macroStrategy: core.macroStrategy,
+    currentPhase: weekCtx?.phase ?? core.phases[0]?.phase ?? "base",
+    weeksUntilEvent: weekCtx?.weeksUntilEvent ?? null,
+  };
+}
 
 export default function TrainingPlan() {
   const { data: activePlan, loading: planLoading, refetch: refetchPlan } = useActivePlan();
@@ -34,10 +45,13 @@ export default function TrainingPlan() {
 
   // Derived state
   const hasPlan = !!activePlan && !showWizard;
-  const planStructure: PlanStructure | null =
-    freshPlanStructure ?? activePlan?.planStructure ?? null;
   const weekSkeleton: WeekSkeleton | null = freshSkeleton ?? pipelineSkeleton ?? null;
   const weekContext: WeekContext | null = freshWeekContext ?? pipelineWeekContext ?? null;
+
+  // Build UI PlanStructure from core planStructure + weekContext
+  const planStructure: PlanStructure | null = freshPlanStructure
+    ?? (activePlan?.planStructure ? toUiPlanStructure(activePlan.planStructure, weekContext) : null);
+
   const slots: SessionSlot[] = weekSkeleton?.slots ?? [];
   const loading = planLoading || pipelineLoading;
 
