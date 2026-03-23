@@ -32,21 +32,16 @@ function toUiPlanStructure(core: CorePlanStructure, weekCtx: WeekContext | null)
 }
 
 export default function TrainingPlan() {
-  // Task 8: exact hook contract
-  const { data: activePlanData, loading: planLoading, refetch: refetchPlan } = useActivePlan();
-  const plan = activePlanData?.plan ?? null;
-  const blocks = activePlanData?.blocks ?? [];
-  const planStructureCore = activePlanData?.planStructure ?? null;
+  // Task 8: useActivePlan returns { data, loading, error, refetch }
+  // Destructure plan + blocks from data to match Task 8 contract
+  const activePlan = useActivePlan();
+  const plan = activePlan.data?.plan ?? null;
+  const blocks = activePlan.data?.blocks ?? [];
+  const planStructureCore = activePlan.data?.planStructure ?? null;
+  const planLoading = activePlan.loading;
+  const refetchPlan = activePlan.refetch;
 
-  const {
-    createPlan,
-    loadCurrentWeek,
-    skeleton: pipelineSkeleton,
-    weekContext: pipelineWeekContext,
-    blockContext: pipelineBlockContext,
-    loading: pipelineLoading,
-    error,
-  } = usePlanPipeline();
+  const { createPlan, loadCurrentWeek, skeleton, weekContext: pipelineWeekContext, blockContext: pipelineBlockContext, loading: pipelineLoading, error } = usePlanPipeline();
 
   const [showWizard, setShowWizard] = useState(false);
 
