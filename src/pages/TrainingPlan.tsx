@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Sparkles, Plus } from "lucide-react";
+import { Calendar, Sparkles, Plus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MacrocycleTimeline } from "@/components/plan/MacrocycleTimeline";
 import { BlockTimeline } from "@/components/plan/BlockTimeline";
@@ -8,6 +8,7 @@ import { DayDetailPanel } from "@/components/plan/DayDetailPanel";
 import { WeekSummaryPanel } from "@/components/plan/WeekSummaryPanel";
 import { PlanCreationWizard } from "@/components/plan/PlanCreationWizard";
 import { SessionSlot, PlanStructure, WeekContext, WeekSkeleton, BlockContext } from "@/types/pipeline";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useActivePlan } from "@/hooks/useActivePlan";
 import { usePlanPipeline } from "@/hooks/usePlanPipeline";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -31,21 +32,16 @@ function toUiPlanStructure(core: CorePlanStructure, weekCtx: WeekContext | null)
 }
 
 export default function TrainingPlan() {
-  // Task 8: exact hook contract
-  const { data: activePlanData, loading: planLoading, refetch: refetchPlan } = useActivePlan();
-  const plan = activePlanData?.plan ?? null;
-  const blocks = activePlanData?.blocks ?? [];
-  const planStructureCore = activePlanData?.planStructure ?? null;
+  // Task 8: useActivePlan returns { data, loading, error, refetch }
+  // Destructure plan + blocks from data to match Task 8 contract
+  const activePlan = useActivePlan();
+  const plan = activePlan.data?.plan ?? null;
+  const blocks = activePlan.data?.blocks ?? [];
+  const planStructureCore = activePlan.data?.planStructure ?? null;
+  const planLoading = activePlan.loading;
+  const refetchPlan = activePlan.refetch;
 
-  const {
-    createPlan,
-    loadCurrentWeek,
-    skeleton: pipelineSkeleton,
-    weekContext: pipelineWeekContext,
-    blockContext: pipelineBlockContext,
-    loading: pipelineLoading,
-    error,
-  } = usePlanPipeline();
+  const { createPlan, loadCurrentWeek, skeleton, weekContext: pipelineWeekContext, blockContext: pipelineBlockContext, loading: pipelineLoading, error } = usePlanPipeline();
 
   const [showWizard, setShowWizard] = useState(false);
 
@@ -58,7 +54,7 @@ export default function TrainingPlan() {
 
   // Derived state — Task 8 state machine
   const hasPlan = !!plan && !showWizard;
-  const weekSkeleton: WeekSkeleton | null = freshSkeleton ?? pipelineSkeleton ?? null;
+  const weekSkeleton: WeekSkeleton | null = freshSkeleton ?? skeleton ?? null;
   const weekContext: WeekContext | null = freshWeekContext ?? pipelineWeekContext ?? null;
   const blockContext: BlockContext | null = freshBlockContext ?? pipelineBlockContext ?? null;
   const activeBlocks: BlockRow[] = freshBlocks ?? blocks;
@@ -71,10 +67,10 @@ export default function TrainingPlan() {
 
   // State machine: plan exists, skeleton not loaded → call loadCurrentWeek(plan.id)
   useEffect(() => {
-    if (plan && !showWizard && !freshSkeleton && !pipelineSkeleton && !pipelineLoading) {
+    if (plan && !showWizard && !freshSkeleton && !skeleton && !pipelineLoading) {
       loadCurrentWeek(plan.id);
     }
-  }, [plan, showWizard, freshSkeleton, pipelineSkeleton, pipelineLoading, loadCurrentWeek]);
+  }, [plan, showWizard, freshSkeleton, skeleton, pipelineLoading, loadCurrentWeek]);
 
   // Panel state
   const [selectedSlot, setSelectedSlot] = useState<SessionSlot | null>(null);
@@ -235,6 +231,15 @@ export default function TrainingPlan() {
         blockContext={blockContext}
         loading={pipelineLoading}
       />
+
+      {/* Pipeline error */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error loading weekly plan</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Skeleton loading state */}
       {pipelineLoading && slots.length === 0 && (
