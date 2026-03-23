@@ -232,6 +232,15 @@ export default function TrainingPlan() {
         loading={pipelineLoading}
       />
 
+      {/* Pipeline error */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error loading weekly plan</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Skeleton loading state */}
       {pipelineLoading && slots.length === 0 && (
         <div className="space-y-2">
