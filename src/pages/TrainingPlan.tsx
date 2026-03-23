@@ -2,18 +2,23 @@ import { useState, useEffect } from "react";
 import { Calendar, Sparkles, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MacrocycleTimeline } from "@/components/plan/MacrocycleTimeline";
+import { BlockTimeline } from "@/components/plan/BlockTimeline";
 import { WeeklyCalendar } from "@/components/plan/WeeklyCalendar";
 import { DayDetailPanel } from "@/components/plan/DayDetailPanel";
 import { WeekSummaryPanel } from "@/components/plan/WeekSummaryPanel";
 import { PlanCreationWizard } from "@/components/plan/PlanCreationWizard";
-import { SessionSlot, PlanStructure, WeekContext, WeekSkeleton } from "@/types/pipeline";
+import { SessionSlot, PlanStructure, WeekContext, WeekSkeleton, BlockContext } from "@/types/pipeline";
 import { useActivePlan } from "@/hooks/useActivePlan";
 import { usePlanPipeline } from "@/hooks/usePlanPipeline";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { format, startOfWeek } from "date-fns";
 import type { PlanStructure as CorePlanStructure } from "@/lib/coaching/planningCore";
+import type { Database } from "@/integrations/supabase/types";
+
+type BlockRow = Database["public"]["Tables"]["blocks"]["Row"];
 
 /** Adapt the full planningCore PlanStructure to the simplified UI PlanStructure */
 function toUiPlanStructure(core: CorePlanStructure, weekCtx: WeekContext | null): PlanStructure {
@@ -26,14 +31,20 @@ function toUiPlanStructure(core: CorePlanStructure, weekCtx: WeekContext | null)
 }
 
 export default function TrainingPlan() {
-  const { data: activePlan, loading: planLoading, refetch: refetchPlan } = useActivePlan();
+  // Task 8: exact hook contract
+  const { data: activePlanData, loading: planLoading, refetch: refetchPlan } = useActivePlan();
+  const plan = activePlanData?.plan ?? null;
+  const blocks = activePlanData?.blocks ?? [];
+  const planStructureCore = activePlanData?.planStructure ?? null;
+
   const {
+    createPlan,
     loadCurrentWeek,
     skeleton: pipelineSkeleton,
     weekContext: pipelineWeekContext,
-    blockContext,
+    blockContext: pipelineBlockContext,
     loading: pipelineLoading,
-    error: pipelineError,
+    error,
   } = usePlanPipeline();
 
   const [showWizard, setShowWizard] = useState(false);
@@ -42,25 +53,28 @@ export default function TrainingPlan() {
   const [freshSkeleton, setFreshSkeleton] = useState<WeekSkeleton | null>(null);
   const [freshWeekContext, setFreshWeekContext] = useState<WeekContext | null>(null);
   const [freshPlanStructure, setFreshPlanStructure] = useState<PlanStructure | null>(null);
+  const [freshBlocks, setFreshBlocks] = useState<BlockRow[] | null>(null);
+  const [freshBlockContext, setFreshBlockContext] = useState<BlockContext | null>(null);
 
-  // Derived state
-  const hasPlan = !!activePlan && !showWizard;
+  // Derived state — Task 8 state machine
+  const hasPlan = !!plan && !showWizard;
   const weekSkeleton: WeekSkeleton | null = freshSkeleton ?? pipelineSkeleton ?? null;
   const weekContext: WeekContext | null = freshWeekContext ?? pipelineWeekContext ?? null;
+  const blockContext: BlockContext | null = freshBlockContext ?? pipelineBlockContext ?? null;
+  const activeBlocks: BlockRow[] = freshBlocks ?? blocks;
 
-  // Build UI PlanStructure from core planStructure + weekContext
+  // Build UI PlanStructure from plan.plan_structure_json + weekContext
   const planStructure: PlanStructure | null = freshPlanStructure
-    ?? (activePlan?.planStructure ? toUiPlanStructure(activePlan.planStructure, weekContext) : null);
+    ?? (planStructureCore ? toUiPlanStructure(planStructureCore, weekContext) : null);
 
   const slots: SessionSlot[] = weekSkeleton?.slots ?? [];
-  const loading = planLoading || pipelineLoading;
 
-  // Load current week skeleton when plan exists but no skeleton loaded
+  // State machine: plan exists, skeleton not loaded → call loadCurrentWeek(plan.id)
   useEffect(() => {
-    if (activePlan && !showWizard && !freshSkeleton && !pipelineSkeleton && !pipelineLoading) {
-      loadCurrentWeek(activePlan.plan.id);
+    if (plan && !showWizard && !freshSkeleton && !pipelineSkeleton && !pipelineLoading) {
+      loadCurrentWeek(plan.id);
     }
-  }, [activePlan, showWizard, freshSkeleton, pipelineSkeleton, pipelineLoading, loadCurrentWeek]);
+  }, [plan, showWizard, freshSkeleton, pipelineSkeleton, pipelineLoading, loadCurrentWeek]);
 
   // Panel state
   const [selectedSlot, setSelectedSlot] = useState<SessionSlot | null>(null);
@@ -84,11 +98,21 @@ export default function TrainingPlan() {
     setSelectedSlot(null);
   };
 
+  // Task 8: handlePlanCreated uses result directly for instant display
   const handlePlanCreated = (result: any) => {
-    // Set fresh data for instant display
+    // result contains: planId, planStructure, blocks, weekContext, weekSkeleton, blockContext
     if (result?.weekSkeleton) setFreshSkeleton(result.weekSkeleton);
     if (result?.weekContext) setFreshWeekContext(result.weekContext);
-    if (result?.planStructure) setFreshPlanStructure(result.planStructure);
+    if (result?.blockContext) setFreshBlockContext(result.blockContext);
+    if (result?.planStructure) {
+      setFreshPlanStructure({
+        totalWeeks: result.planStructure.totalWeeks ?? 0,
+        macroStrategy: result.planStructure.macroStrategy ?? "",
+        currentPhase: result.weekContext?.phase ?? "base",
+        weeksUntilEvent: result.weekContext?.weeksUntilEvent ?? null,
+      });
+    }
+    if (result?.blocks) setFreshBlocks(result.blocks as BlockRow[]);
     refetchPlan();
     setShowWizard(false);
   };
@@ -97,11 +121,15 @@ export default function TrainingPlan() {
     setFreshSkeleton(null);
     setFreshWeekContext(null);
     setFreshPlanStructure(null);
+    setFreshBlocks(null);
+    setFreshBlockContext(null);
     setShowWizard(true);
   };
 
-  // Show wizard when no plan exists (after loading)
-  if (!planLoading && !activePlan && !showWizard) {
+  // --- State machine rendering ---
+
+  // No active plan → wizard
+  if (!planLoading && !plan && !showWizard) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
@@ -113,7 +141,7 @@ export default function TrainingPlan() {
     );
   }
 
-  // Show wizard explicitly
+  // Show wizard explicitly (New Plan clicked)
   if (showWizard) {
     return (
       <div className="space-y-6">
@@ -129,7 +157,7 @@ export default function TrainingPlan() {
     );
   }
 
-  // Loading state
+  // Plan loading
   if (planLoading) {
     return (
       <div className="space-y-6">
@@ -138,6 +166,7 @@ export default function TrainingPlan() {
           <h1 className="text-xl font-semibold">Plan</h1>
         </div>
         <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-10 w-full" />
         <div className="grid grid-cols-7 gap-2">
           {[...Array(7)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
@@ -145,11 +174,32 @@ export default function TrainingPlan() {
     );
   }
 
-  // Panel content
+  // Panel content with blockContext info
   const panelContent = panelMode === "detail" ? (
     <DayDetailPanel slot={selectedSlot} onClose={handleCloseDetail} />
   ) : panelMode === "summary" ? (
-    <WeekSummaryPanel weekSkeleton={weekSkeleton} weekContext={weekContext} loading={pipelineLoading} />
+    <div className="space-y-4">
+      {/* Block context summary in the side panel */}
+      {blockContext && (
+        <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[10px] capitalize">
+              {blockContext.phase} Block {blockContext.blockNumberInPhase}
+            </Badge>
+            {blockContext.isDeloadWeek && (
+              <Badge className="text-[10px] bg-warning/20 text-warning border-warning/30">
+                Deload
+              </Badge>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Week {blockContext.weekInBlock} of {blockContext.blockWeeks}
+            {" · "}{blockContext.blockLoadWeeks} load week{blockContext.blockLoadWeeks !== 1 ? "s" : ""}
+          </p>
+        </div>
+      )}
+      <WeekSummaryPanel weekSkeleton={weekSkeleton} weekContext={weekContext} loading={pipelineLoading} />
+    </div>
   ) : (
     <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
       Click a session for details
@@ -158,6 +208,7 @@ export default function TrainingPlan() {
 
   const panelTitle = panelMode === "detail" ? "Session Detail" : "Week Overview";
 
+  // Plan exists, skeleton loaded (or loading) → full plan view
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -178,7 +229,24 @@ export default function TrainingPlan() {
         loading={pipelineLoading}
       />
 
-      {/* Empty skeleton state */}
+      {/* Block Timeline */}
+      <BlockTimeline
+        blocks={activeBlocks}
+        blockContext={blockContext}
+        loading={pipelineLoading}
+      />
+
+      {/* Skeleton loading state */}
+      {pipelineLoading && slots.length === 0 && (
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid grid-cols-7 gap-2">
+            {[...Array(7)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state after loading */}
       {!pipelineLoading && slots.length === 0 && (
         <div className="rounded-lg border border-border bg-card p-12 text-center space-y-4">
           <Sparkles className="h-8 w-8 text-muted-foreground mx-auto" />
