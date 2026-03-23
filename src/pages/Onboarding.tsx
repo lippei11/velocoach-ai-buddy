@@ -87,15 +87,11 @@ export default function Onboarding() {
 
   const handleSaveSetup = async () => {
     setSavingPrefs(true);
-    const updated = {
-      ...prefs,
-      event_date: eventDate ? format(eventDate, "yyyy-MM-dd") : "",
-    };
-    const ok = await save(updated);
+    const ok = await save(prefs);
     setSavingPrefs(false);
     if (ok) {
       toast.success("Training setup saved!");
-      navigate("/dashboard");
+      navigate("/plan");
     } else {
       toast.error("Failed to save — please try again");
     }
