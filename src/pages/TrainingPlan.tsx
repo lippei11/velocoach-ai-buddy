@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Sparkles, Plus } from "lucide-react";
+import { Calendar, Sparkles, Plus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MacrocycleTimeline } from "@/components/plan/MacrocycleTimeline";
 import { BlockTimeline } from "@/components/plan/BlockTimeline";
@@ -8,6 +8,7 @@ import { DayDetailPanel } from "@/components/plan/DayDetailPanel";
 import { WeekSummaryPanel } from "@/components/plan/WeekSummaryPanel";
 import { PlanCreationWizard } from "@/components/plan/PlanCreationWizard";
 import { SessionSlot, PlanStructure, WeekContext, WeekSkeleton, BlockContext } from "@/types/pipeline";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useActivePlan } from "@/hooks/useActivePlan";
 import { usePlanPipeline } from "@/hooks/usePlanPipeline";
 import { useIsMobile } from "@/hooks/use-mobile";
